@@ -94,6 +94,13 @@ export async function getOptimisedList(budget: number, dietaryPreferences: strin
     const kcal100g = energyKj * KCAL_PER_KJ
     const proteinPctOfCalories = (product.nutrition.per_100g.protein_g * KCAL_PER_GRAM_PROTEIN) / kcal100g
     if (kcal100g <= 0 || proteinPctOfCalories < MIN_PROTEIN_PCT_OF_CALORIES) continue
+    // Can't exceed 100% -- physically impossible, seen in practice from a
+    // handful of OFF records with an implausibly low energy_kj relative to
+    // their (otherwise plausible) protein_g, e.g. "2 kJ/100g" on roasted
+    // pistachios (should be ~2600). The macro-sum sanity check above
+    // doesn't catch this since it's an energy/protein mismatch, not an
+    // impossible macro value on its own.
+    if (proteinPctOfCalories > 1) continue
 
     // Weighed products (unit: 'kg', no fixed size_grams) are priced per
     // kilogram, so 1000g is the correct reference weight to pair with
@@ -107,6 +114,8 @@ export async function getOptimisedList(budget: number, dietaryPreferences: strin
 
     if (priceDollars <= 0 || proteinG <= 0) continue
 
+    const proteinPerDollar = proteinG / priceDollars
+
     candidates.push({
       product_id: product.product_id,
       name: product.name,
@@ -116,17 +125,24 @@ export async function getOptimisedList(budget: number, dietaryPreferences: strin
       vendor_name: priceDoc.vendor_name,
       price_dollars: priceDollars,
       protein_g: proteinG,
-      protein_per_dollar: proteinG / priceDollars,
+      protein_per_dollar: proteinPerDollar,
       protein_pct_of_calories: proteinPctOfCalories,
+      // Combined ranking score: economics (protein_per_dollar) times
+      // quality (protein_pct_of_calories), so a lean, high-protein food
+      // outranks a cheaper but carb/fat-heavy one at a similar price, not
+      // just whichever is cheapest per gram of protein. Multiplicative
+      // rather than a weighted sum so neither factor can dominate on its
+      // own -- a reasoned default, not empirically tuned.
+      score: proteinPerDollar * proteinPctOfCalories,
       nutrition_per_100g: product.nutrition.per_100g,
     })
   }
 
-  candidates.sort((a, b) => b.protein_per_dollar - a.protein_per_dollar)
+  candidates.sort((a, b) => b.score - a.score)
 
   // Greedy budget fill, not a true knapsack -- documented simplification
-  // for this research prototype. Highest protein-per-dollar items are
-  // added first and skipped only if they don't fit the remaining budget.
+  // for this research prototype. Highest-score items (economics x quality)
+  // are added first and skipped only if they don't fit the remaining budget.
   const items = []
   let remainingBudget = budget
   let totalProteinG = 0

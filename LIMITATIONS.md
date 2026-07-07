@@ -67,14 +67,20 @@ stripped of leading zeros, and padded to each standard GTIN length
   for `"Premium Pilsner"`, `"Tonno callipo"` for `"Yellowfin Tuna"`). This
   heuristic is not reliable enough to use as an automatic filter.
 - **Mitigation in place:** a sanity filter rejects nutrition values that are
-  physically impossible (any macro > 100g/100g, or protein + fat + carbs >
-  100g/100g). This catches egregious cases (e.g. OFF's own data listed
-  Brunswick Sardines at 286g protein/100g -- impossible, and excluded
-  automatically) but **does not** catch matches like the berries case, where
-  the wrong product's macro values are individually plausible-looking.
+  physically impossible: any macro > 100g/100g, protein + fat + carbs >
+  100g/100g, or protein's calorie share > 100% of total energy. This catches
+  egregious cases (e.g. OFF's own data listed Brunswick Sardines at 286g
+  protein/100g, and separately "WW Salted & Roasted Pistachios" at
+  `energy_kj: 2` -- a data-entry error, correct product match but ~1300x too
+  low, which alone produced a 17,573% protein-of-calories reading before the
+  ratio cap was added) but **does not** catch matches like the berries case,
+  where the wrong product's macro values are individually plausible-looking.
 - **Net effect:** an unknown but likely small fraction of the 5,265 "matched"
   products are matched to the wrong item. No cheap, reliable way was found to
-  bound this further within the current data sources.
+  bound this further within the current data sources. Since the ranking
+  score (below) multiplies protein-per-dollar by protein-quality, the
+  berries case now ranks **#1** for a $30-50 budget -- a known-bad data
+  point made more visible by the scoring change, not a new error.
 
 ## Ranking methodology assumptions
 
@@ -94,9 +100,17 @@ silently assumed:
   but only derives ~11% of its calories from protein.
 - **Both thresholds are reasoned defaults, not empirically validated** against
   a real nutrition target or literature. Worth revisiting for the writeup.
+- **Ranking score = protein_per_dollar x protein_pct_of_calories.**
+  Candidates are sorted by this combined score rather than protein-per-dollar
+  alone, so a lean, high-quality protein source can outrank a cheaper but
+  carb/fat-heavy one at a similar price. Multiplicative rather than a
+  weighted sum so neither factor dominates alone -- also a reasoned default,
+  not empirically tuned. This is what surfaced the pistachio energy-value
+  bug above: multiplying by an unbounded ratio amplifies any single bad
+  data point far more than the old protein-per-dollar-only sort did.
 - **Budget fill is greedy, not a true knapsack.** Candidates are sorted by
-  protein-per-dollar descending and added while they fit the remaining
-  budget. This is a documented simplification, not globally optimal.
+  the score above descending and added while they fit the remaining budget.
+  This is a documented simplification, not globally optimal.
 - **Dietary preferences are accepted but not enforced.** Neither Grocer.nz
   nor OFF's `per_100g` fields include allergen/dietary-tag data, so there is
   currently no schema field to filter on. The API returns
