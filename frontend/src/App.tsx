@@ -163,7 +163,7 @@ function App() {
 function ItemRow({ rank, item }: { rank: number; item: OptimiseItem }) {
   return (
     <li className="flex flex-col gap-3 rounded-md border border-border bg-surface px-4 py-3 transition-colors hover:bg-surface-hover sm:flex-row sm:items-center">
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-background text-xs font-medium text-muted">
           {rank}
         </span>
