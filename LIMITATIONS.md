@@ -116,6 +116,19 @@ silently assumed:
   currently no schema field to filter on. The API returns
   `dietaryFiltersApplied: false` so this is visible in the response, not
   silently dropped.
+- **No macro-preference filter (carbs/fat priority) yet.** Considered adding
+  a way to optimize for "more carbs" or "more fat" alongside protein, but
+  deferred -- the interaction model needed deciding first (pick one macro to
+  rank by, vs. independent minimum-threshold filters per macro that could
+  combine), and it's a meaningfully different feature from the calorie
+  budget below, not just a variable swap. Revisit if there's a concrete use
+  case (e.g. bulking-focused shoppers wanting a carb-forward ranking).
+- **Calorie budget is a hard per-item cap during greedy fill, not a
+  nutrition target.** `calorieBudget` (optional) stops adding items once
+  the running total would exceed it, alongside the existing dollar-budget
+  check -- same greedy, non-knapsack simplification noted above. It has no
+  awareness of daily targets, meal splitting, or maintenance/surplus/deficit
+  goals; it's purely "don't let this grocery list exceed N total kcal."
 
 ## Geographic scope: 30 Auckland-area stores, not all 465
 

@@ -18,7 +18,11 @@ const KCAL_PER_GRAM_PROTEIN = 4
 // Replaces legacy/4-rank-protein-per-dollar.js's DuckDB-based CLI ranking:
 // this queries MongoDB directly, since DuckDB is now purely an ETL/sync
 // tool and never touches the runtime request path.
-export async function getOptimisedList(budget: number, dietaryPreferences: string[] = []) {
+export async function getOptimisedList(
+  budget: number,
+  dietaryPreferences: string[] = [],
+  calorieBudget: number | null = null
+) {
   // NOTE: dietaryPreferences is accepted but not enforced yet -- there is
   // no dietary/allergen/tag data anywhere in the schema (Grocer.nz doesn't
   // provide it, and Open Food Facts' per_100g nutrition fields don't cover
@@ -111,6 +115,7 @@ export async function getOptimisedList(budget: number, dietaryPreferences: strin
 
     const priceDollars = priceDoc.effective_price_cent / 100
     const proteinG = (product.nutrition.per_100g.protein_g * referenceGrams) / 100
+    const kcalTotal = (kcal100g * referenceGrams) / 100
 
     if (priceDollars <= 0 || proteinG <= 0) continue
 
@@ -125,6 +130,7 @@ export async function getOptimisedList(budget: number, dietaryPreferences: strin
       vendor_name: priceDoc.vendor_name,
       price_dollars: priceDollars,
       protein_g: proteinG,
+      kcal: kcalTotal,
       protein_per_dollar: proteinPerDollar,
       protein_pct_of_calories: proteinPctOfCalories,
       // Combined ranking score: economics (protein_per_dollar) times
@@ -142,16 +148,24 @@ export async function getOptimisedList(budget: number, dietaryPreferences: strin
 
   // Greedy budget fill, not a true knapsack -- documented simplification
   // for this research prototype. Highest-score items (economics x quality)
-  // are added first and skipped only if they don't fit the remaining budget.
+  // are added first and skipped only if they don't fit the remaining
+  // dollar budget or (if given) the remaining calorie budget. A whole
+  // package/kg is taken as-is, not split, same as the dollar budget.
   const items = []
   let remainingBudget = budget
+  let remainingCalorieBudget = calorieBudget
   let totalProteinG = 0
+  let totalCalories = 0
 
   for (const item of candidates) {
     if (item.price_dollars > remainingBudget) continue
+    if (remainingCalorieBudget != null && item.kcal > remainingCalorieBudget) continue
+
     items.push(item)
     remainingBudget -= item.price_dollars
     totalProteinG += item.protein_g
+    totalCalories += item.kcal
+    if (remainingCalorieBudget != null) remainingCalorieBudget -= item.kcal
   }
 
   return {
@@ -159,6 +173,9 @@ export async function getOptimisedList(budget: number, dietaryPreferences: strin
     totalCost: budget - remainingBudget,
     remainingBudget,
     totalProteinG,
+    calorieBudget,
+    totalCalories,
+    remainingCalorieBudget,
     dietaryPreferences,
     dietaryFiltersApplied: false, // see NOTE above -- no schema support yet
     items,

@@ -9,6 +9,7 @@ interface OptimiseItem {
   vendor_name: string
   price_dollars: number
   protein_g: number
+  kcal: number
   protein_per_dollar: number
   protein_pct_of_calories: number
 }
@@ -18,6 +19,9 @@ interface OptimiseResult {
   totalCost: number
   remainingBudget: number
   totalProteinG: number
+  calorieBudget: number | null
+  totalCalories: number
+  remainingCalorieBudget: number | null
   dietaryFiltersApplied: boolean
   items: OptimiseItem[]
 }
@@ -26,17 +30,21 @@ const BUDGET_PRESETS = [30, 50, 75, 100]
 
 function App() {
   const [budget, setBudget] = useState('50')
+  const [calorieBudget, setCalorieBudget] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<OptimiseResult | null>(null)
 
-  async function runOptimise(budgetValue: string) {
+  async function runOptimise(budgetValue: string, calorieBudgetValue: string) {
     setLoading(true)
     setError(null)
     setResult(null)
 
     try {
-      const res = await fetch(`/api/optimise?budget=${encodeURIComponent(budgetValue)}`)
+      const params = new URLSearchParams({ budget: budgetValue })
+      if (calorieBudgetValue) params.set('calorieBudget', calorieBudgetValue)
+
+      const res = await fetch(`/api/optimise?${params}`)
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error || `Request failed (${res.status})`)
@@ -51,12 +59,12 @@ function App() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    runOptimise(budget)
+    runOptimise(budget, calorieBudget)
   }
 
   function handlePreset(value: number) {
     setBudget(String(value))
-    runOptimise(String(value))
+    runOptimise(String(value), calorieBudget)
   }
 
   return (
@@ -98,6 +106,20 @@ function App() {
                 />
               </div>
             </label>
+
+            <label className="flex flex-col gap-1">
+              <span className="text-sm text-muted">Calorie cap (optional)</span>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                placeholder="No limit"
+                value={calorieBudget}
+                onChange={(e) => setCalorieBudget(e.target.value)}
+                className="w-36 rounded-md border border-border bg-surface px-3 py-2 text-foreground outline-none placeholder:text-muted focus:border-accent-500"
+              />
+            </label>
+
             <button
               type="submit"
               disabled={loading}
@@ -131,10 +153,18 @@ function App() {
 
         {result && (
           <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <Stat label="Total cost" value={`$${result.totalCost.toFixed(2)}`} />
               <Stat label="Remaining" value={`$${result.remainingBudget.toFixed(2)}`} />
               <Stat label="Total protein" value={`${result.totalProteinG.toFixed(0)}g`} />
+              <Stat
+                label="Total calories"
+                value={
+                  result.calorieBudget != null
+                    ? `${result.totalCalories.toFixed(0)} / ${result.calorieBudget} kcal`
+                    : `${result.totalCalories.toFixed(0)} kcal`
+                }
+              />
             </div>
 
             {result.items.length === 0 ? (
@@ -182,7 +212,7 @@ function ItemRow({ rank, item }: { rank: number; item: OptimiseItem }) {
         </span>
         <span className="text-xs text-muted">
           ${item.price_dollars.toFixed(2)} · {item.protein_g.toFixed(0)}g protein ·{' '}
-          {(item.protein_pct_of_calories * 100).toFixed(0)}% of cal
+          {item.kcal.toFixed(0)}kcal · {(item.protein_pct_of_calories * 100).toFixed(0)}% of cal
         </span>
       </div>
     </li>

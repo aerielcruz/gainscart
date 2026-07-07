@@ -18,8 +18,17 @@ optimiseRouter.get('/', async (req, res) => {
           .filter(Boolean)
       : []
 
+  let calorieBudget: number | null = null
+  if (req.query.calorieBudget !== undefined) {
+    calorieBudget = Number(req.query.calorieBudget)
+    if (!Number.isFinite(calorieBudget) || calorieBudget <= 0) {
+      res.status(400).json({ error: 'calorieBudget must be a positive number' })
+      return
+    }
+  }
+
   try {
-    const result = await getOptimisedList(budget, dietaryPreferences)
+    const result = await getOptimisedList(budget, dietaryPreferences, calorieBudget)
     res.json(result)
   } catch (err) {
     console.error('getOptimisedList failed:', err)
