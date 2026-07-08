@@ -18,8 +18,25 @@ export function barcodeCandidates(barcode) {
   return Array.from(candidates)
 }
 
+// OFF's own ingredient-analysis output -- computed by OFF from the
+// ingredients list, not something we're inferring ourselves. "unknown"/
+// "maybe-*" tags map to null (genuinely unknown), not false, so callers
+// can tell "confirmed not vegan" apart from "OFF has no ingredient list
+// to analyze."
+function veganStatus(tags) {
+  if (tags.includes('en:vegan')) return true
+  if (tags.includes('en:non-vegan')) return false
+  return null
+}
+
+function vegetarianStatus(tags) {
+  if (tags.includes('en:vegetarian')) return true
+  if (tags.includes('en:non-vegetarian')) return false
+  return null
+}
+
 async function fetchOnce(candidateBarcode) {
-  const url = `https://world.openfoodfacts.org/api/v2/product/${candidateBarcode}.json?fields=code,product_name,nutriments`
+  const url = `https://world.openfoodfacts.org/api/v2/product/${candidateBarcode}.json?fields=code,product_name,nutriments,ingredients_analysis_tags,allergens_tags`
   const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } })
 
   if (!res.ok) return { found: false }
@@ -28,6 +45,9 @@ async function fetchOnce(candidateBarcode) {
   if (data.status !== 1 || !data.product) return { found: false }
 
   const n = data.product.nutriments || {}
+  const analysisTags = data.product.ingredients_analysis_tags || []
+  const allergensTags = data.product.allergens_tags || []
+
   return {
     found: true,
     productName: data.product.product_name || null,
@@ -41,6 +61,14 @@ async function fetchOnce(candidateBarcode) {
       fiber_g: n['fiber_100g'] ?? null,
       // OFF reports sodium in g/100g; CLAUDE.md schema wants mg.
       sodium_mg: n['sodium_100g'] != null ? n['sodium_100g'] * 1000 : null,
+    },
+    dietary: {
+      vegan: veganStatus(analysisTags),
+      vegetarian: vegetarianStatus(analysisTags),
+      // e.g. "en:milk" -> "milk". Declared allergens only -- does not
+      // include "may contain traces of" cross-contamination warnings
+      // (OFF's separate traces_tags), see LIMITATIONS.md.
+      allergens: allergensTags.map((t) => t.replace(/^en:/, '')),
     },
   }
 }

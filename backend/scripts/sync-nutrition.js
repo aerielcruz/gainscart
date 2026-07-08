@@ -11,6 +11,12 @@
  * *selection* query keys off synced_at so it doesn't loop forever on the
  * same misses.
  *
+ * ALSO backfills `nutrition.dietary` (vegan/vegetarian/allergens) onto
+ * already-matched products from before this field existed -- those never
+ * requested it from OFF the first time around. Backfill rows are
+ * distinguished by already having synced_at set; only `dietary` is
+ * touched for them, per_100g/matched/synced_at are left alone.
+ *
  * Usage: node scripts/sync-nutrition.js [limit]
  *   limit = max number of products to attempt this run (default 500)
  */
@@ -36,20 +42,35 @@ const EMPTY_PER_100G = {
   sodium_mg: null,
 }
 
+const EMPTY_DIETARY = { vegan: null, vegetarian: null, allergens: [] }
+
 async function main() {
   const db = await getDb()
   const products = db.collection('products')
 
-  const pending = await products.find({ 'nutrition.synced_at': null }).limit(LIMIT).toArray()
+  const pending = await products
+    .find({
+      $or: [
+        { 'nutrition.synced_at': null },
+        { 'nutrition.matched': true, 'nutrition.dietary': { $exists: false } },
+      ],
+    })
+    .limit(LIMIT)
+    .toArray()
 
-  console.log(`Found ${pending.length} products pending nutrition lookup (limit ${LIMIT}).`)
+  console.log(`Found ${pending.length} products pending nutrition/dietary lookup (limit ${LIMIT}).`)
 
   let matched = 0
   let missed = 0
   let skippedNoBarcode = 0
+  let dietaryBackfilled = 0
 
   for (const product of pending) {
+    const isDietaryBackfill = product.nutrition.synced_at != null
+
     if (!product.barcode) {
+      // Only genuinely new attempts can lack a barcode -- a backfill
+      // candidate is already matched:true, which requires one.
       skippedNoBarcode++
       await products.updateOne(
         { _id: product._id },
@@ -66,6 +87,16 @@ async function main() {
       outcome = { found: false }
     }
 
+    if (isDietaryBackfill) {
+      dietaryBackfilled++
+      await products.updateOne(
+        { _id: product._id },
+        { $set: { 'nutrition.dietary': outcome.found ? outcome.dietary : EMPTY_DIETARY } }
+      )
+      await sleep(DELAY_MS)
+      continue
+    }
+
     if (outcome.found) matched++
     else missed++
 
@@ -76,6 +107,7 @@ async function main() {
           'nutrition.source': outcome.found ? 'openfoodfacts' : null,
           'nutrition.off_product_name': outcome.productName ?? null,
           'nutrition.per_100g': outcome.found ? outcome.per100g : EMPTY_PER_100G,
+          'nutrition.dietary': outcome.found ? outcome.dietary : EMPTY_DIETARY,
           'nutrition.matched': outcome.found,
           'nutrition.synced_at': new Date(),
         },
@@ -85,8 +117,10 @@ async function main() {
     await sleep(DELAY_MS)
   }
 
-  console.log(`\nDone. ${matched} matched, ${missed} not found, ${skippedNoBarcode} skipped (no barcode).`)
-  console.log('Re-run this script again to pick up the next batch of un-attempted products.')
+  console.log(
+    `\nDone. ${matched} matched, ${missed} not found, ${skippedNoBarcode} skipped (no barcode), ${dietaryBackfilled} dietary-only backfills.`
+  )
+  console.log('Re-run this script again to pick up the next batch.')
 
   await closeDb()
 }

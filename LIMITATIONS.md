@@ -111,11 +111,29 @@ silently assumed:
 - **Budget fill is greedy, not a true knapsack.** Candidates are sorted by
   the score above descending and added while they fit the remaining budget.
   This is a documented simplification, not globally optimal.
-- **Dietary preferences are accepted but not enforced.** Neither Grocer.nz
-  nor OFF's `per_100g` fields include allergen/dietary-tag data, so there is
-  currently no schema field to filter on. The API returns
-  `dietaryFiltersApplied: false` so this is visible in the response, not
-  silently dropped.
+- **Dietary preferences are now enforced, via a different OFF endpoint
+  than nutrition.** `per_100g` nutriments never had allergen/diet data --
+  but OFF separately exposes `ingredients_analysis_tags` (vegan/vegetarian
+  status, computed by OFF from the ingredients list) and `allergens_tags`
+  (declared allergens), which the original nutrition sync never requested.
+  Added a `nutrition.dietary` field and backfilled it for all previously-
+  matched products (a second OFF lookup pass, ~1.3s/product since these are
+  confirmed hits with no barcode-candidate retries needed -- much faster
+  than the original ~26hr sync). Recognized preferences: `vegan`,
+  `vegetarian`, and `<allergen>-free` for milk/gluten/nuts+peanuts/eggs/
+  soybeans/fish/crustaceans+molluscs/sesame.
+  - **Not a safety guarantee.** This is OFF's community-sourced labelling,
+    not verified against source ingredient lists. It also does not check
+    `traces_tags` ("may contain traces of") -- a genuine cross-contamination
+    risk for allergy-sensitive users that this filter is blind to. The
+    frontend surfaces this caveat directly next to the filter controls
+    rather than only in this document.
+  - **vegan/vegetarian unknown status is treated as excluded, not included**
+    -- if OFF hasn't analyzed a product's ingredients (common), it won't
+    show up under "Vegan" even if it likely qualifies. Conservative by
+    design (favors false exclusions over false inclusions for a dietary
+    claim), but it does shrink the effective candidate pool further on top
+    of the existing ~6% nutrition match rate.
 - **No macro-preference filter (carbs/fat priority) yet.** Considered adding
   a way to optimize for "more carbs" or "more fat" alongside protein, but
   deferred -- the interaction model needed deciding first (pick one macro to

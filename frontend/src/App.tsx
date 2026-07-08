@@ -28,14 +28,25 @@ interface OptimiseResult {
 
 const BUDGET_PRESETS = [30, 50, 75, 100]
 
+const DIETARY_OPTIONS = [
+  { value: 'vegan', label: 'Vegan' },
+  { value: 'vegetarian', label: 'Vegetarian' },
+  { value: 'dairy-free', label: 'Dairy-free' },
+  { value: 'gluten-free', label: 'Gluten-free' },
+  { value: 'nut-free', label: 'Nut-free' },
+  { value: 'egg-free', label: 'Egg-free' },
+  { value: 'soy-free', label: 'Soy-free' },
+]
+
 function App() {
   const [budget, setBudget] = useState('50')
   const [calorieBudget, setCalorieBudget] = useState('')
+  const [dietaryPreferences, setDietaryPreferences] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<OptimiseResult | null>(null)
 
-  async function runOptimise(budgetValue: string, calorieBudgetValue: string) {
+  async function runOptimise(budgetValue: string, calorieBudgetValue: string, dietaryValues: string[]) {
     setLoading(true)
     setError(null)
     setResult(null)
@@ -43,6 +54,7 @@ function App() {
     try {
       const params = new URLSearchParams({ budget: budgetValue })
       if (calorieBudgetValue) params.set('calorieBudget', calorieBudgetValue)
+      if (dietaryValues.length > 0) params.set('dietaryPreferences', dietaryValues.join(','))
 
       const res = await fetch(`/api/optimise?${params}`)
       if (!res.ok) {
@@ -59,12 +71,18 @@ function App() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    runOptimise(budget, calorieBudget)
+    runOptimise(budget, calorieBudget, dietaryPreferences)
   }
 
   function handlePreset(value: number) {
     setBudget(String(value))
-    runOptimise(String(value), calorieBudget)
+    runOptimise(String(value), calorieBudget, dietaryPreferences)
+  }
+
+  function toggleDietary(value: string) {
+    setDietaryPreferences((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    )
   }
 
   return (
@@ -142,6 +160,35 @@ function App() {
                 ${value}
               </button>
             ))}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm text-muted">Dietary preferences (optional)</span>
+            <div className="flex flex-wrap gap-2">
+              {DIETARY_OPTIONS.map((opt) => {
+                const active = dietaryPreferences.includes(opt.value)
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    disabled={loading}
+                    onClick={() => toggleDietary(opt.value)}
+                    className={`rounded-full border px-3 py-1 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                      active
+                        ? 'border-accent-500 bg-accent-900 text-accent-300'
+                        : 'border-border text-muted hover:border-accent-500 hover:text-foreground'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                )
+              })}
+            </div>
+            <p className="text-xs text-muted">
+              Based on Open Food Facts' community-sourced labels -- not a
+              guarantee, and doesn't account for "may contain traces of"
+              warnings. Double-check labels if you have a serious allergy.
+            </p>
           </div>
         </form>
 

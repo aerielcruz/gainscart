@@ -24,6 +24,15 @@ const productSchema = new Schema({
     },
     matched: { type: Boolean, default: false },
     synced_at: Date,
+    // From OFF's ingredients_analysis_tags / allergens_tags -- not
+    // requested in the original nutrition sync, backfilled separately.
+    // vegan/vegetarian are true/false/null (null = OFF has no ingredient
+    // list to analyze, i.e. genuinely unknown, not "no").
+    dietary: {
+      vegan: { type: Boolean, default: null },
+      vegetarian: { type: Boolean, default: null },
+      allergens: { type: [String], default: [] },
+    },
   },
 })
 

@@ -15,6 +15,41 @@ const MIN_PROTEIN_PCT_OF_CALORIES = 0.2 // share of total energy from protein
 const KCAL_PER_KJ = 1 / 4.184
 const KCAL_PER_GRAM_PROTEIN = 4
 
+// Recognized dietaryPreferences values that map to an OFF allergens_tags
+// exclusion (tag names with the "en:" prefix already stripped -- see
+// offLookup.js). 'vegan'/'vegetarian' are handled separately since
+// they're OFF's own computed ingredient-analysis status, not an allergen.
+// IMPORTANT: this is informational filtering based on community-sourced
+// OFF data, not a medical/allergy-safety guarantee -- it also does not
+// account for "may contain traces of" cross-contamination warnings
+// (OFF's separate traces_tags, not fetched). See LIMITATIONS.md.
+const ALLERGEN_EXCLUSIONS: Record<string, string[]> = {
+  'dairy-free': ['milk'],
+  'gluten-free': ['gluten'],
+  'nut-free': ['nuts', 'peanuts'],
+  'egg-free': ['eggs'],
+  'soy-free': ['soybeans'],
+  'fish-free': ['fish'],
+  'shellfish-free': ['crustaceans', 'molluscs'],
+  'sesame-free': ['sesame-seeds'],
+}
+
+export const RECOGNIZED_DIETARY_PREFERENCES = ['vegan', 'vegetarian', ...Object.keys(ALLERGEN_EXCLUSIONS)]
+
+function matchesDietaryPreferences(dietary: any, preferences: string[]) {
+  const d = dietary ?? { vegan: null, vegetarian: null, allergens: [] }
+
+  for (const pref of preferences) {
+    if (pref === 'vegan' && d.vegan !== true) return false
+    if (pref === 'vegetarian' && d.vegetarian !== true) return false
+
+    const excludedAllergens = ALLERGEN_EXCLUSIONS[pref]
+    if (excludedAllergens && excludedAllergens.some((a) => d.allergens.includes(a))) return false
+  }
+
+  return true
+}
+
 // Replaces legacy/4-rank-protein-per-dollar.js's DuckDB-based CLI ranking:
 // this queries MongoDB directly, since DuckDB is now purely an ETL/sync
 // tool and never touches the runtime request path.
@@ -23,12 +58,6 @@ export async function getOptimisedList(
   dietaryPreferences: string[] = [],
   calorieBudget: number | null = null
 ) {
-  // NOTE: dietaryPreferences is accepted but not enforced yet -- there is
-  // no dietary/allergen/tag data anywhere in the schema (Grocer.nz doesn't
-  // provide it, and Open Food Facts' per_100g nutrition fields don't cover
-  // it either). Flagging as a stated limitation rather than silently
-  // dropping the parameter or guessing at a name-based heuristic.
-
   // Reduced in plain JS rather than a MongoDB aggregation: the `prices`
   // collection is small enough to hold in memory (currently ~30 stores'
   // worth), and Atlas's free/shared tier rejects allowDiskUse outright,
@@ -80,6 +109,8 @@ export async function getOptimisedList(
   for (const priceDoc of cheapestPerProduct) {
     const product = productsById.get(priceDoc.product_id)
     if (!product) continue
+
+    if (!matchesDietaryPreferences(product.nutrition.dietary, dietaryPreferences)) continue
 
     // Defensive sanity check: macros can't physically exceed 100g per
     // 100g of product. Catches OFF data-entry errors and some wrong
@@ -141,6 +172,7 @@ export async function getOptimisedList(
       // own -- a reasoned default, not empirically tuned.
       score: proteinPerDollar * proteinPctOfCalories,
       nutrition_per_100g: product.nutrition.per_100g,
+      dietary: product.nutrition.dietary ?? { vegan: null, vegetarian: null, allergens: [] },
     })
   }
 
@@ -177,7 +209,7 @@ export async function getOptimisedList(
     totalCalories,
     remainingCalorieBudget,
     dietaryPreferences,
-    dietaryFiltersApplied: false, // see NOTE above -- no schema support yet
+    dietaryFiltersApplied: dietaryPreferences.length > 0,
     items,
   }
 }

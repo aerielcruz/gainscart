@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { getOptimisedList } from '../services/optimiser.js'
+import { getOptimisedList, RECOGNIZED_DIETARY_PREFERENCES } from '../services/optimiser.js'
 
 export const optimiseRouter = Router()
 
@@ -14,9 +14,18 @@ optimiseRouter.get('/', async (req, res) => {
     typeof req.query.dietaryPreferences === 'string'
       ? req.query.dietaryPreferences
           .split(',')
-          .map((s) => s.trim())
+          .map((s) => s.trim().toLowerCase())
           .filter(Boolean)
       : []
+
+  const unrecognized = dietaryPreferences.filter((p) => !RECOGNIZED_DIETARY_PREFERENCES.includes(p))
+  if (unrecognized.length > 0) {
+    res.status(400).json({
+      error: `unrecognized dietaryPreferences: ${unrecognized.join(', ')}`,
+      recognized: RECOGNIZED_DIETARY_PREFERENCES,
+    })
+    return
+  }
 
   let calorieBudget: number | null = null
   if (req.query.calorieBudget !== undefined) {
