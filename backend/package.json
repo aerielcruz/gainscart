@@ -10,6 +10,7 @@
     "start": "node dist/index.js",
     "sync:products": "node scripts/sync-products.js",
     "sync:nutrition": "node scripts/sync-nutrition.js",
+    "sync:fresh-foods": "node scripts/sync-fresh-foods.js",
     "sync:prices": "node scripts/sync-prices.js"
   },
   "keywords": [],

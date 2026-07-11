@@ -10,8 +10,17 @@ const productSchema = new Schema({
   size_grams: Number,
   barcode: String,
   nutrition: {
-    source: { type: String, enum: ['openfoodfacts', null], default: null },
+    // 'curated-reference' = hand-curated per-100g estimate for fresh/weighed
+    // foods (chicken breast, beef mince, etc.), matched by product-name
+    // keyword rather than barcode -- see freshFoodReference.js. Kept
+    // distinct from 'openfoodfacts' since it's a weaker evidence tier
+    // (category-level estimate, not a product-specific lookup).
+    source: { type: String, enum: ['openfoodfacts', 'curated-reference', null], default: null },
     off_product_name: String,
+    // Which curated category matched (e.g. 'chicken_breast') -- only set
+    // when source is 'curated-reference'. QA field, same purpose as
+    // off_product_name above.
+    matched_category: String,
     per_100g: {
       energy_kj: Number,
       protein_g: Number,

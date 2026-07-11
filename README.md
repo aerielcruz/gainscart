@@ -2,8 +2,9 @@
 
 Protein-per-dollar grocery optimiser for NZ supermarkets. Give it a budget
 and it returns a ranked grocery list showing protein, cost, and
-protein-per-dollar for each item, sourced from live Grocer.nz pricing and
-Open Food Facts nutrition data.
+protein-per-dollar for each item, sourced from live Grocer.nz pricing,
+Open Food Facts nutrition data, and a curated reference table for fresh
+foods (chicken, beef, fish, etc.) OFF can't barcode-match.
 
 This is also the backing artifact for an AIS Design Science Research (DSR)
 applied research project -- see [`CLAUDE.md`](./CLAUDE.md) for the full
@@ -31,8 +32,9 @@ backend/
   scripts/
     sync-products.js     Grocer.nz catalog -> `products` + `stores` collections
     sync-nutrition.js    Open Food Facts lookups -> nutrition data on `products`
+    sync-fresh-foods.js  Curated per-100g reference data for weighed/fresh foods OFF can't match
     sync-prices.js       Live per-store prices -> `prices` collection
-    lib/                 Shared helpers (size parsing, OFF lookup, DuckDB, Mongo)
+    lib/                 Shared helpers (size parsing, OFF lookup, fresh-food reference, DuckDB, Mongo)
     legacy/              Original prototype scripts, kept for reference only
 ```
 
@@ -81,7 +83,19 @@ The optimiser has nothing to rank until the pipeline has run. From
    full ~109K-product catalog took **~26 hours** of repeated runs in
    testing (~500 products / ~13 min per run, run back-to-back).
 
-3. **`npm run sync:prices`** -- fetches live prices for the store whitelist
+3. **`npm run sync:fresh-foods`** -- fills nutrition for weighed products
+   (`unit: "kg"` -- fresh meat, fish) that OFF can never barcode-match
+   (they use store-generated scale-label codes, not real GS1 barcodes).
+   Matches product names against a hand-curated per-100g reference table
+   instead -- see LIMITATIONS.md for the full list of keyword-matching
+   false positives found and excluded (pet food, organ meats, pastry
+   pies, etc.). Took a few seconds against the ~15K-product `unit: "kg"`
+   slice in testing. Safe to re-run any time, including after editing the
+   keyword rules in `scripts/lib/freshFoodReference.js` -- it re-evaluates
+   and corrects previously-matched products rather than only filling new
+   ones.
+
+4. **`npm run sync:prices`** -- fetches live prices for the store whitelist
    hardcoded in `scripts/sync-prices.js` (`STORE_WHITELIST`, currently 30
    Auckland-area stores). Took ~1-2 minutes for 30 stores in testing.
    Re-run whenever you want fresher prices; each run inserts a fresh batch
@@ -97,12 +111,17 @@ LIMITATIONS.md).
 
 - `GET /api/health` -- liveness check
 - `GET /api/optimise?budget=50` -- ranked, budget-constrained grocery list.
-  Accepts an optional `dietaryPreferences` query param (comma-separated) --
-  currently accepted but not enforced, see LIMITATIONS.md.
+  - `dietaryPreferences` (optional, comma-separated) -- enforced via OFF's
+    vegan/vegetarian/allergen tags. Recognized values: `vegan`,
+    `vegetarian`, and `<allergen>-free` for
+    dairy/gluten/nut/egg/soy/fish/shellfish/sesame. 400s on an unrecognized
+    value. Not a medical/allergy-safety guarantee -- see LIMITATIONS.md.
+  - `calorieBudget` (optional) -- hard cap on total kcal added during the
+    greedy budget fill, alongside the dollar budget.
 
 ## Known limitations
 
 See [`LIMITATIONS.md`](./LIMITATIONS.md) for the full, measured writeup --
-OFF nutrition match rate, the fresh/weighed-food coverage gap (chicken,
-beef, eggs), wrong-barcode-match risk, ranking assumptions, and why price
-coverage is scoped to 30 stores.
+OFF nutrition match rate, the curated fresh-food reference table and its
+residual approximations, wrong-barcode-match risk, ranking assumptions,
+dietary-filter caveats, and why price coverage is scoped to 30 stores.

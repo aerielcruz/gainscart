@@ -40,14 +40,57 @@ the most intuitive "protein foods" -- barely appear in results.**
   `size_grams` -- see `getOptimisedList` in `optimiser.ts`. This is
   correct but currently inert: there's no OFF data for any weighed product
   for it to act on.
-- **Real fix, not yet built:** a small hand-curated reference table (per-100g
-  nutrition for ~15-20 generic categories: chicken breast, beef mince, salmon,
-  whole eggs, etc.) matched by product name/keyword instead of barcode, with
-  a distinct `nutrition.source` value so it's clearly separated from
-  barcode-verified OFF data in any analysis. Deliberately deferred -- keyword
-  rules need care (raw "chicken breast" name-matching pulled in cat food, dog
-  food, and pies during testing) and category-level estimates are a weaker
-  evidence tier than product-specific OFF matches.
+- **Fix built:** a hand-curated reference table (per-100g nutrition for 14
+  generic categories -- chicken breast/thigh/mince, beef/beef mince,
+  lamb, pork, venison, sausages, bacon, salmon, tuna, white fish fillets)
+  matched by product-name keyword instead of barcode --
+  `backend/scripts/lib/freshFoodReference.js`, applied via
+  `sync-fresh-foods.js`. Tagged with `nutrition.source: 'curated-reference'`
+  (and `nutrition.matched_category` recording which category matched), kept
+  distinct from `'openfoodfacts'` since it's a weaker evidence tier
+  (category-level estimate, not a product-specific lookup) and the
+  optimiser/pipeline never let it overwrite a genuine OFF match.
+  - **No eggs.** Every `unit: 'kg'` product matching "egg" in the live
+    catalog turned out to be a mayo-based deli salad (e.g. "Egg & Potato
+    Salad"), not plain eggs -- eggs are still unrankable (pack-counted,
+    see above), unchanged by this fix.
+  - **Result: 6,107 of 15,258 weighed products now have nutrition data**,
+    up from 0. Chicken thighs/drumsticks, tuna steaks, and pork roasts now
+    surface in `/api/optimise` results where previously the only
+    "protein foods" it could find were dry goods and OFF-matched packaged
+    items.
+  - **Keyword rules needed real iteration against the live catalog** to
+    stay accurate -- initial passes wrongly matched pet food/treats
+    (checked for "pet"/"dog" but not e.g. `"Bacon Lobe Chews Dog Treat"`),
+    mayo-based deli salads, pastry pies (`"Bakehouse Steak Family Pie"`),
+    organ meats (liver/kidney/heart/tripe/tongue/gizzards -- different
+    nutrition profile from muscle meat), bony/low-yield cuts (bones,
+    fish/pig heads, chicken necks, tendons), composite/bakery items that
+    happen to contain a meat word (`"Swiss Roll Beef"`, `"Cheese & Bacon
+    Muffin"`, `"Chicken Pasta Bake"`), and pork crackling/crackle (skin
+    and fat, not muscle meat -- `"crackling"` wasn't caught by an initial
+    `"crackle"`-only exclude rule). Each was found by pulling real product
+    names for a category from the live catalog and eyeballing for
+    false positives, not guessed in advance -- `sync-fresh-foods.js` is
+    written to be safe to re-run after a keyword-rule fix (it
+    re-evaluates and reverts any product previously tagged
+    `curated-reference` that no longer matches, rather than leaving a
+    stale guess in place).
+  - **Known remaining approximation, not chased further:** a handful of
+    non-standard cuts still get the generic category's lean-fillet/cut
+    nutrition even though their true composition differs meaningfully --
+    whole fish sold gutted-but-otherwise-intact (e.g. "NZ Kahawai Whole",
+    "Whole Trevally", where a fraction of the priced weight is
+    bone/skin/guts, not edible fillet) and fish collar/wing cuts (e.g.
+    "NZ Blue Moki Wings", notably fattier than a lean fillet). Low
+    enough volume (single digits per term) that further keyword-carving
+    hit diminishing returns; flagged here rather than silently accepted.
+  - **Nutrition values are generic reference figures** (in the spirit of
+    USDA FoodData Central-style raw/as-sold composition data), not
+    NZ-specific or brand-specific lab results -- a reasoned estimate per
+    category, not measured per product. Documented the same way as the
+    protein-density/ratio thresholds below: a defensible default, not an
+    empirically validated one.
 
 ## Barcode-format-guessing risks false-positive matches
 
