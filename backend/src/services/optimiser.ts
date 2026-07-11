@@ -173,6 +173,12 @@ export async function getOptimisedList(
       score: proteinPerDollar * proteinPctOfCalories,
       nutrition_per_100g: product.nutrition.per_100g,
       dietary: product.nutrition.dietary ?? { vegan: null, vegetarian: null, allergens: [] },
+      // 'openfoodfacts' = verified barcode match; 'curated-reference' =
+      // hand-curated category estimate for fresh/weighed foods OFF can't
+      // barcode-match (see LIMITATIONS.md) -- a meaningfully weaker
+      // evidence tier, surfaced here rather than blended silently.
+      nutrition_source: product.nutrition.source,
+      matched_category: product.nutrition.matched_category ?? null,
     })
   }
 

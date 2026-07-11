@@ -12,6 +12,8 @@ interface OptimiseItem {
   kcal: number
   protein_per_dollar: number
   protein_pct_of_calories: number
+  nutrition_source: 'openfoodfacts' | 'curated-reference' | null
+  matched_category: string | null
 }
 
 interface OptimiseResult {
@@ -229,6 +231,9 @@ function App() {
             <p className="text-center text-xs text-muted">
               Prices from 30 Auckland-area stores (Woolworths, New World,
               Pak'nSave) — proof of concept, not a national price feed.
+              Items marked <span className="uppercase tracking-wide">Estimated</span> use
+              a category-level nutrition estimate (e.g. generic chicken
+              breast) rather than a verified per-product match.
             </p>
           </div>
         )}
@@ -246,7 +251,17 @@ function ItemRow({ rank, item }: { rank: number; item: OptimiseItem }) {
         </span>
 
         <div className="min-w-0 flex-1">
-          <div className="font-medium">{item.name}</div>
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{item.name}</span>
+            {item.nutrition_source === 'curated-reference' && (
+              <span
+                title="Nutrition is a category-level estimate (e.g. generic chicken breast), not a verified product match -- see LIMITATIONS.md"
+                className="shrink-0 rounded-full border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted"
+              >
+                Estimated
+              </span>
+            )}
+          </div>
           <div className="text-xs text-muted">
             {[item.brand, item.size, item.store_name].filter(Boolean).join(' · ')}
           </div>
