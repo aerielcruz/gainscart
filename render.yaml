@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: gainscart-backend
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      # Set these in the Render dashboard after the first deploy -- never
+      # committed to the repo. MONGODB_URI/GROQ_API_KEY are secrets;
+      # `sync: false` tells Render to prompt for a value instead of
+      # expecting one here.
+      - key: MONGODB_URI
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: llama-3.1-8b-instant
+
+  # Static site for the built frontend. NOTE: Render's blueprint preview UI
+  # validates this before creating anything -- if the exact keys here have
+  # since changed, Render will flag it there rather than fail silently; the
+  # equivalent settings (root dir "frontend", build command, publish dir
+  # "dist", one rewrite rule) are just as easy to set by hand under
+  # New + -> Static Site if the blueprint version needs adjusting.
+  - type: web
+    name: gainscart-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://gainscart-backend.onrender.com/api/*

@@ -4,6 +4,9 @@
   "description": "GainsCart API server",
   "main": "src/index.ts",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
