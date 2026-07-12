@@ -86,7 +86,14 @@ type PriceDoc = {
 // stale-by-an-hour is a non-issue against a dataset that's stale-by-a-day
 // by design. This turns every request after the first (per cache window)
 // from ~25s into effectively instant.
-const CHEAPEST_PER_PRODUCT_CACHE_TTL_MS = 60 * 60 * 1000
+//
+// IMPORTANT: index.ts calls warmCheapestPerProductCache() before the server
+// starts accepting requests, and re-warms it in the background on a timer --
+// a live HTTP request should never be the one paying this cost. Found in
+// practice on Render: the cold path took long enough (>~55s from Render's
+// network path to Atlas, vs ~25s measured locally) to exceed the platform's
+// own gateway timeout, turning a slow-but-working request into a hard 502.
+export const CHEAPEST_PER_PRODUCT_CACHE_TTL_MS = 60 * 60 * 1000
 let cheapestPerProductCache: { data: PriceDoc[]; expiresAt: number } | null = null
 
 async function getCheapestPerProduct(): Promise<PriceDoc[]> {
@@ -122,6 +129,13 @@ async function getCheapestPerProduct(): Promise<PriceDoc[]> {
   const data = Array.from(cheapestByProduct.values())
   cheapestPerProductCache = { data, expiresAt: Date.now() + CHEAPEST_PER_PRODUCT_CACHE_TTL_MS }
   return data
+}
+
+// Called from index.ts at startup (before the server accepts requests) and
+// on a recurring timer -- see the cache comment above for why a live
+// request must never be the one paying this cost.
+export async function warmCheapestPerProductCache(): Promise<void> {
+  await getCheapestPerProduct()
 }
 
 // Replaces legacy/4-rank-protein-per-dollar.js's DuckDB-based CLI ranking:
