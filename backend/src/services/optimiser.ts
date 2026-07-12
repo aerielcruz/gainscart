@@ -1,5 +1,6 @@
 import { Product } from '../models/Product.js'
 import { Price } from '../models/Price.js'
+import { Store } from '../models/Store.js'
 
 // Minimum protein density and protein-to-calorie ratio a product must
 // clear to be considered a "protein source" for ranking purposes.
@@ -70,6 +71,18 @@ type PriceDoc = {
   observed_at: Date
 }
 
+// Deliberately narrower than PriceDoc -- no store_name/vendor_name strings,
+// since those get duplicated across every one of the ~438K map entries
+// below otherwise. Store names are looked up afterward from the `stores`
+// collection (~30 docs) for only the handful of cheapest-per-product
+// winners, not for every candidate considered along the way.
+type MinimalPriceDoc = {
+  product_id: number
+  store_id: number
+  effective_price_cent: number
+  observed_at: Date
+}
+
 // This fetch-and-reduce is the single most expensive step in the request
 // path -- measured at ~25s (438K raw price docs transferred from Atlas to
 // Node; the query itself runs in <1s server-side, so it's driver/BSON
@@ -101,32 +114,83 @@ async function getCheapestPerProduct(): Promise<PriceDoc[]> {
     return cheapestPerProductCache.data
   }
 
-  const priceDocs = await Price.find(
+  // Streamed grouped-by-product, not into a full (product_id, store_id) map
+  // -- an earlier version held one entry per unique pair (438,855 of them
+  // right now, since only one sync run has happened so far so nothing
+  // dedupes yet) and crashed the deployed Render instance with an
+  // out-of-memory error (Render's free tier caps container RAM well below
+  // what this held, even after dropping string fields -- see git history).
+  //
+  // Fix: sort matches the existing {product_id,store_id,observed_at} index
+  // exactly (confirmed via .explain() -- IXSCAN, no blocking in-memory SORT
+  // stage), so docs stream in with every (product_id, store_id) group's
+  // latest-first order guaranteed by the index itself. That means only one
+  // product's rows (bounded by ~30 stores) ever need to be held at once,
+  // converging to a ~32,708-entry result (the actual distinct product
+  // count) instead of the full 438,855-pair cross product -- measured
+  // ~117MB peak RSS this way vs. ~450-460MB before, comfortably inside
+  // Render's limit. The explicit small batchSize turned out to matter as
+  // much as the algorithm change: the driver's default cursor batching held
+  // enough in flight to still crash a tightly memory-constrained process
+  // even with this grouped approach, until reduced.
+  const cursor = Price.find(
     { effective_price_cent: { $ne: null } },
-    { product_id: 1, store_id: 1, store_name: 1, vendor_name: 1, effective_price_cent: 1, observed_at: 1 }
-  ).lean<PriceDoc[]>()
+    { product_id: 1, store_id: 1, effective_price_cent: 1, observed_at: 1 }
+  )
+    .sort({ product_id: 1, store_id: 1, observed_at: -1 })
+    .batchSize(500)
+    .lean<MinimalPriceDoc>()
+    .cursor()
 
-  // Latest observation per (product_id, store_id).
-  const latestByProductStore = new Map<string, PriceDoc>()
-  for (const doc of priceDocs) {
-    const key = `${doc.product_id}:${doc.store_id}`
-    const existing = latestByProductStore.get(key)
-    if (!existing || doc.observed_at > existing.observed_at) {
-      latestByProductStore.set(key, doc)
-    }
+  const cheapestPerProduct: MinimalPriceDoc[] = []
+  let currentProductId: number | null = null
+  let seenStoresForProduct = new Set<number>()
+  let cheapestForProduct: MinimalPriceDoc | null = null
+
+  function finalizeCurrentProduct() {
+    if (cheapestForProduct) cheapestPerProduct.push(cheapestForProduct)
   }
 
-  // Cheapest of those per product -- a shopper picks whichever store is
-  // currently cheapest for that product.
-  const cheapestByProduct = new Map<number, PriceDoc>()
-  for (const doc of latestByProductStore.values()) {
-    const existing = cheapestByProduct.get(doc.product_id)
-    if (!existing || doc.effective_price_cent < existing.effective_price_cent) {
-      cheapestByProduct.set(doc.product_id, doc)
+  for await (const doc of cursor) {
+    if (doc.product_id !== currentProductId) {
+      finalizeCurrentProduct()
+      currentProductId = doc.product_id
+      seenStoresForProduct = new Set()
+      cheapestForProduct = null
+    }
+
+    // Within a product's group, docs for a given store are ordered latest
+    // (observed_at desc) first -- the first time we see a store_id here is
+    // its latest observation, so later repeats of the same store_id within
+    // this group are older and should be ignored.
+    if (seenStoresForProduct.has(doc.store_id)) continue
+    seenStoresForProduct.add(doc.store_id)
+
+    if (!cheapestForProduct || doc.effective_price_cent < cheapestForProduct.effective_price_cent) {
+      cheapestForProduct = doc
     }
   }
+  finalizeCurrentProduct()
 
-  const data = Array.from(cheapestByProduct.values())
+  // Store names are only ever needed for the winners (one per product),
+  // not for every candidate considered above -- looked up now from the
+  // small `stores` collection (~30 docs) rather than carried through the
+  // large intermediate maps.
+  const stores = await Store.find({}, { store_id: 1, name: 1, vendor_name: 1 }).lean()
+  const storeById = new Map(stores.map((s) => [s.store_id, s]))
+
+  const data: PriceDoc[] = cheapestPerProduct.map((doc) => {
+    const store = storeById.get(doc.store_id)
+    return {
+      product_id: doc.product_id,
+      store_id: doc.store_id,
+      effective_price_cent: doc.effective_price_cent,
+      observed_at: doc.observed_at,
+      store_name: store?.name ?? 'Unknown store',
+      vendor_name: store?.vendor_name ?? 'Unknown',
+    }
+  })
+
   cheapestPerProductCache = { data, expiresAt: Date.now() + CHEAPEST_PER_PRODUCT_CACHE_TTL_MS }
   return data
 }
