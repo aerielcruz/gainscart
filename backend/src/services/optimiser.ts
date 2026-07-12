@@ -36,6 +36,17 @@ const ALLERGEN_EXCLUSIONS: Record<string, string[]> = {
 
 export const RECOGNIZED_DIETARY_PREFERENCES = ['vegan', 'vegetarian', ...Object.keys(ALLERGEN_EXCLUSIONS)]
 
+// 'value' (default): rank by protein_per_dollar x protein_pct_of_calories,
+// same combined economics-x-quality score as always. 'protein_density':
+// rank by protein_pct_of_calories alone, for someone who cares more about
+// getting a lean, high-protein food than about squeezing the most protein
+// out of each dollar -- price still gates what fits the budget during the
+// greedy fill below, it just no longer influences *which* items are
+// preferred first. Addresses the "no macro-preference ranking mode yet"
+// gap noted in LIMITATIONS.md.
+export const RANK_MODES = ['value', 'protein_density'] as const
+export type RankMode = (typeof RANK_MODES)[number]
+
 function matchesDietaryPreferences(dietary: any, preferences: string[]) {
   const d = dietary ?? { vegan: null, vegetarian: null, allergens: [] }
 
@@ -119,7 +130,8 @@ async function getCheapestPerProduct(): Promise<PriceDoc[]> {
 export async function getOptimisedList(
   budget: number,
   dietaryPreferences: string[] = [],
-  calorieBudget: number | null = null
+  calorieBudget: number | null = null,
+  rankBy: RankMode = 'value'
 ) {
   const cheapestPerProduct = await getCheapestPerProduct()
 
@@ -204,13 +216,15 @@ export async function getOptimisedList(
       kcal: kcalTotal,
       protein_per_dollar: proteinPerDollar,
       protein_pct_of_calories: proteinPctOfCalories,
-      // Combined ranking score: economics (protein_per_dollar) times
-      // quality (protein_pct_of_calories), so a lean, high-protein food
-      // outranks a cheaper but carb/fat-heavy one at a similar price, not
-      // just whichever is cheapest per gram of protein. Multiplicative
-      // rather than a weighted sum so neither factor can dominate on its
-      // own -- a reasoned default, not empirically tuned.
-      score: proteinPerDollar * proteinPctOfCalories,
+      // 'value': economics (protein_per_dollar) times quality
+      // (protein_pct_of_calories), so a lean, high-protein food outranks a
+      // cheaper but carb/fat-heavy one at a similar price, not just
+      // whichever is cheapest per gram of protein. Multiplicative rather
+      // than a weighted sum so neither factor can dominate alone -- a
+      // reasoned default, not empirically tuned.
+      // 'protein_density': quality alone, for ranking by leanness rather
+      // than value -- see RankMode above.
+      score: rankBy === 'protein_density' ? proteinPctOfCalories : proteinPerDollar * proteinPctOfCalories,
       nutrition_per_100g: product.nutrition.per_100g,
       dietary: product.nutrition.dietary ?? { vegan: null, vegetarian: null, allergens: [] },
       // 'openfoodfacts' = verified barcode match; 'curated-reference' =
@@ -289,6 +303,7 @@ export async function getOptimisedList(
     remainingCalorieBudget,
     dietaryPreferences,
     dietaryFiltersApplied: dietaryPreferences.length > 0,
+    rankBy,
     items,
   }
 }

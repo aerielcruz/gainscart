@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { getOptimisedList, RECOGNIZED_DIETARY_PREFERENCES } from '../services/optimiser.js'
+import { getOptimisedList, RECOGNIZED_DIETARY_PREFERENCES, RANK_MODES, type RankMode } from '../services/optimiser.js'
 
 export const optimiseRouter = Router()
 
@@ -36,8 +36,14 @@ optimiseRouter.get('/', async (req, res) => {
     }
   }
 
+  const rankBy = (req.query.rankBy as string) || 'value'
+  if (!RANK_MODES.includes(rankBy as RankMode)) {
+    res.status(400).json({ error: `rankBy must be one of: ${RANK_MODES.join(', ')}` })
+    return
+  }
+
   try {
-    const result = await getOptimisedList(budget, dietaryPreferences, calorieBudget)
+    const result = await getOptimisedList(budget, dietaryPreferences, calorieBudget, rankBy as RankMode)
     res.json(result)
   } catch (err) {
     console.error('getOptimisedList failed:', err)

@@ -38,6 +38,7 @@ interface OptimiseResult {
   totalCalories: number
   remainingCalorieBudget: number | null
   dietaryFiltersApplied: boolean
+  rankBy: 'value' | 'protein_density'
   items: OptimiseItem[]
 }
 
@@ -78,10 +79,16 @@ const DIETARY_OPTIONS = [
   { value: 'soy-free', label: 'Soy-free' },
 ]
 
+const RANK_OPTIONS: { value: 'value' | 'protein_density'; label: string; hint: string }[] = [
+  { value: 'value', label: 'Best value', hint: 'Most protein per dollar' },
+  { value: 'protein_density', label: 'Leanest', hint: 'Most protein per calorie, regardless of price' },
+]
+
 function App() {
   const [budget, setBudget] = useState('50')
   const [calorieBudget, setCalorieBudget] = useState('')
   const [dietaryPreferences, setDietaryPreferences] = useState<string[]>([])
+  const [rankBy, setRankBy] = useState<'value' | 'protein_density'>('value')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<OptimiseResult | null>(null)
@@ -102,24 +109,31 @@ function App() {
     const urlCalorieBudget = params.get('calorieBudget') || ''
     const urlDietary = params.get('dietaryPreferences')
     const urlDietaryValues = urlDietary ? urlDietary.split(',').map((s) => s.trim()).filter(Boolean) : []
+    const urlRankBy = params.get('rankBy') === 'protein_density' ? 'protein_density' : 'value'
 
     setBudget(urlBudget)
     setCalorieBudget(urlCalorieBudget)
     setDietaryPreferences(urlDietaryValues)
-    runOptimise(urlBudget, urlCalorieBudget, urlDietaryValues)
+    setRankBy(urlRankBy)
+    runOptimise(urlBudget, urlCalorieBudget, urlDietaryValues, urlRankBy)
     // Intentionally run once on mount only -- this reads the URL a user
     // arrived with, it shouldn't re-fire as state changes afterward.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function runOptimise(budgetValue: string, calorieBudgetValue: string, dietaryValues: string[]) {
+  async function runOptimise(
+    budgetValue: string,
+    calorieBudgetValue: string,
+    dietaryValues: string[],
+    rankByValue: 'value' | 'protein_density'
+  ) {
     setLoading(true)
     setError(null)
     setResult(null)
     setBasketSummary(null)
 
     try {
-      const params = new URLSearchParams({ budget: budgetValue })
+      const params = new URLSearchParams({ budget: budgetValue, rankBy: rankByValue })
       if (calorieBudgetValue) params.set('calorieBudget', calorieBudgetValue)
       if (dietaryValues.length > 0) params.set('dietaryPreferences', dietaryValues.join(','))
 
@@ -142,12 +156,12 @@ function App() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    runOptimise(budget, calorieBudget, dietaryPreferences)
+    runOptimise(budget, calorieBudget, dietaryPreferences, rankBy)
   }
 
   function handlePreset(value: number) {
     setBudget(String(value))
-    runOptimise(String(value), calorieBudget, dietaryPreferences)
+    runOptimise(String(value), calorieBudget, dietaryPreferences, rankBy)
   }
 
   function toggleDietary(value: string) {
@@ -268,8 +282,8 @@ function App() {
           </h2>
           <p className="text-muted">
             Set a budget (in NZD) and we'll build a grocery list ranked by
-            protein-per-dollar, using live prices from Auckland-area
-            supermarkets.
+            protein-per-dollar (or leanness, your choice), using live prices
+            from Auckland-area supermarkets.
           </p>
         </div>
 
@@ -330,6 +344,36 @@ function App() {
                 NZD ${value}
               </button>
             ))}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm text-muted">Rank by</span>
+            <div className="flex flex-wrap gap-2">
+              {RANK_OPTIONS.map((opt) => {
+                const active = rankBy === opt.value
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    disabled={loading}
+                    title={opt.hint}
+                    onClick={() => setRankBy(opt.value)}
+                    className={`rounded-full border px-3 py-1 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                      active
+                        ? 'border-accent-500 bg-accent-900 text-accent-300'
+                        : 'border-border text-muted hover:border-accent-500 hover:text-foreground'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                )
+              })}
+            </div>
+            <p className="text-xs text-muted">
+              {RANK_OPTIONS.find((o) => o.value === rankBy)?.hint}
+              {rankBy === 'protein_density' &&
+                ' -- price still limits what fits your budget, it just no longer decides which items are preferred.'}
+            </p>
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -947,8 +991,8 @@ function Glossary() {
               <dt className="font-medium text-foreground">Protein-per-dollar (g/NZD$)</dt>
               <dd>
                 How many grams of protein you get for every NZD dollar spent
-                on that item. Higher is better value -- it's the main number
-                this app ranks everything by.
+                on that item. Higher is better value -- the main number this
+                app ranks by when "Rank by" is set to Best value.
               </dd>
             </div>
             <div>
@@ -960,6 +1004,21 @@ function Glossary() {
                 than fat or carbs. A higher percentage generally means a
                 "leaner" source -- e.g. chicken breast is high, peanut butter
                 is high-protein but also high-fat so its percentage is lower.
+                This is what the app ranks by when "Rank by" is set to
+                Leanest.
+              </dd>
+            </div>
+            <div>
+              <dt className="font-medium text-foreground">Rank by</dt>
+              <dd>
+                <span className="text-foreground">Best value</span> picks
+                items with the most protein per dollar first.{' '}
+                <span className="text-foreground">Leanest</span> instead
+                picks items with the most protein per calorie first, even if
+                that costs more per gram of protein -- useful if you care
+                more about a lean food than squeezing every gram of protein
+                out of your budget. Either way, your dollar and calorie
+                budgets are still hard limits on what gets included.
               </dd>
             </div>
             <div>
