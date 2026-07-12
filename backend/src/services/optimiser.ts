@@ -50,26 +50,46 @@ function matchesDietaryPreferences(dietary: any, preferences: string[]) {
   return true
 }
 
-// Replaces legacy/4-rank-protein-per-dollar.js's DuckDB-based CLI ranking:
-// this queries MongoDB directly, since DuckDB is now purely an ETL/sync
-// tool and never touches the runtime request path.
-export async function getOptimisedList(
-  budget: number,
-  dietaryPreferences: string[] = [],
-  calorieBudget: number | null = null
-) {
-  // Reduced in plain JS rather than a MongoDB aggregation: the `prices`
-  // collection is small enough to hold in memory (currently ~30 stores'
-  // worth), and Atlas's free/shared tier rejects allowDiskUse outright,
-  // so a $group over the full collection hits the 100MB in-memory limit
-  // with no way to opt into disk spilling.
+type PriceDoc = {
+  product_id: number
+  store_id: number
+  store_name: string
+  vendor_name: string
+  effective_price_cent: number
+  observed_at: Date
+}
+
+// This fetch-and-reduce is the single most expensive step in the request
+// path -- measured at ~25s (438K raw price docs transferred from Atlas to
+// Node; the query itself runs in <1s server-side, so it's driver/BSON
+// overhead per document, not query planning). A real aggregation would
+// avoid transferring raw docs at all, but every attempt (a $sort matching
+// the existing index, and a $group using $top/$bottom to avoid sorting
+// entirely) still exceeded Atlas M0's 100MB $group/32MB $sort in-memory
+// limits with allowDiskUse rejected outright -- same wall the original
+// comment here already documented for a plain $group.
+//
+// The result doesn't depend on budget/dietaryPreferences/calorieBudget at
+// all, and the source data only changes ~once/day (see CLAUDE.md's data
+// pipeline schedule), so caching it in memory is safe, not just fast --
+// stale-by-an-hour is a non-issue against a dataset that's stale-by-a-day
+// by design. This turns every request after the first (per cache window)
+// from ~25s into effectively instant.
+const CHEAPEST_PER_PRODUCT_CACHE_TTL_MS = 60 * 60 * 1000
+let cheapestPerProductCache: { data: PriceDoc[]; expiresAt: number } | null = null
+
+async function getCheapestPerProduct(): Promise<PriceDoc[]> {
+  if (cheapestPerProductCache && cheapestPerProductCache.expiresAt > Date.now()) {
+    return cheapestPerProductCache.data
+  }
+
   const priceDocs = await Price.find(
     { effective_price_cent: { $ne: null } },
     { product_id: 1, store_id: 1, store_name: 1, vendor_name: 1, effective_price_cent: 1, observed_at: 1 }
-  ).lean()
+  ).lean<PriceDoc[]>()
 
   // Latest observation per (product_id, store_id).
-  const latestByProductStore = new Map<string, (typeof priceDocs)[number]>()
+  const latestByProductStore = new Map<string, PriceDoc>()
   for (const doc of priceDocs) {
     const key = `${doc.product_id}:${doc.store_id}`
     const existing = latestByProductStore.get(key)
@@ -80,7 +100,7 @@ export async function getOptimisedList(
 
   // Cheapest of those per product -- a shopper picks whichever store is
   // currently cheapest for that product.
-  const cheapestByProduct = new Map<number, (typeof priceDocs)[number]>()
+  const cheapestByProduct = new Map<number, PriceDoc>()
   for (const doc of latestByProductStore.values()) {
     const existing = cheapestByProduct.get(doc.product_id)
     if (!existing || doc.effective_price_cent < existing.effective_price_cent) {
@@ -88,7 +108,20 @@ export async function getOptimisedList(
     }
   }
 
-  const cheapestPerProduct = Array.from(cheapestByProduct.values())
+  const data = Array.from(cheapestByProduct.values())
+  cheapestPerProductCache = { data, expiresAt: Date.now() + CHEAPEST_PER_PRODUCT_CACHE_TTL_MS }
+  return data
+}
+
+// Replaces legacy/4-rank-protein-per-dollar.js's DuckDB-based CLI ranking:
+// this queries MongoDB directly, since DuckDB is now purely an ETL/sync
+// tool and never touches the runtime request path.
+export async function getOptimisedList(
+  budget: number,
+  dietaryPreferences: string[] = [],
+  calorieBudget: number | null = null
+) {
+  const cheapestPerProduct = await getCheapestPerProduct()
 
   const productIds = cheapestPerProduct.map((p) => p.product_id)
   const products = await Product.find({
@@ -152,6 +185,13 @@ export async function getOptimisedList(
 
     const proteinPerDollar = proteinG / priceDollars
 
+    // Scaled from per-100g to this item's actual reference weight, same
+    // as protein_g/kcal above -- null propagates rather than becoming 0,
+    // since most micros are null for most products (see CLAUDE.md) and a
+    // silent 0 would be indistinguishable from "genuinely none."
+    const scaleFrom100g = (per100g: number | null | undefined) =>
+      per100g == null ? null : (per100g * referenceGrams) / 100
+
     candidates.push({
       product_id: product.product_id,
       name: product.name,
@@ -184,6 +224,12 @@ export async function getOptimisedList(
       // then, since OFF's photo coverage is separate from its data
       // coverage (see offLookup.js).
       image_url: product.nutrition.image_url ?? null,
+      fat_g: scaleFrom100g(product.nutrition.per_100g.fat_g),
+      saturated_fat_g: scaleFrom100g(product.nutrition.per_100g.saturated_fat_g),
+      carbs_g: scaleFrom100g(product.nutrition.per_100g.carbs_g),
+      sugars_g: scaleFrom100g(product.nutrition.per_100g.sugars_g),
+      fiber_g: scaleFrom100g(product.nutrition.per_100g.fiber_g),
+      sodium_mg: scaleFrom100g(product.nutrition.per_100g.sodium_mg),
     })
   }
 
@@ -199,6 +245,16 @@ export async function getOptimisedList(
   let remainingCalorieBudget = calorieBudget
   let totalProteinG = 0
   let totalCalories = 0
+  // Nulls (missing OFF field, most micros for most products -- see
+  // CLAUDE.md) are skipped rather than treated as 0, so a total only
+  // reflects items that actually reported that micro, and isn't silently
+  // deflated by items with no data for it.
+  let totalFatG = 0
+  let totalSaturatedFatG = 0
+  let totalCarbsG = 0
+  let totalSugarsG = 0
+  let totalFiberG = 0
+  let totalSodiumMg = 0
 
   for (const item of candidates) {
     if (item.price_dollars > remainingBudget) continue
@@ -208,6 +264,12 @@ export async function getOptimisedList(
     remainingBudget -= item.price_dollars
     totalProteinG += item.protein_g
     totalCalories += item.kcal
+    if (item.fat_g != null) totalFatG += item.fat_g
+    if (item.saturated_fat_g != null) totalSaturatedFatG += item.saturated_fat_g
+    if (item.carbs_g != null) totalCarbsG += item.carbs_g
+    if (item.sugars_g != null) totalSugarsG += item.sugars_g
+    if (item.fiber_g != null) totalFiberG += item.fiber_g
+    if (item.sodium_mg != null) totalSodiumMg += item.sodium_mg
     if (remainingCalorieBudget != null) remainingCalorieBudget -= item.kcal
   }
 
@@ -216,6 +278,12 @@ export async function getOptimisedList(
     totalCost: budget - remainingBudget,
     remainingBudget,
     totalProteinG,
+    totalFatG,
+    totalSaturatedFatG,
+    totalCarbsG,
+    totalSugarsG,
+    totalFiberG,
+    totalSodiumMg,
     calorieBudget,
     totalCalories,
     remainingCalorieBudget,

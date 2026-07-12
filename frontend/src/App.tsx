@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 
 interface OptimiseItem {
   product_id: number
@@ -15,6 +15,12 @@ interface OptimiseItem {
   nutrition_source: 'openfoodfacts' | 'curated-reference' | null
   matched_category: string | null
   image_url: string | null
+  fat_g: number | null
+  saturated_fat_g: number | null
+  carbs_g: number | null
+  sugars_g: number | null
+  fiber_g: number | null
+  sodium_mg: number | null
 }
 
 interface OptimiseResult {
@@ -22,6 +28,12 @@ interface OptimiseResult {
   totalCost: number
   remainingBudget: number
   totalProteinG: number
+  totalFatG: number
+  totalSaturatedFatG: number
+  totalCarbsG: number
+  totalSugarsG: number
+  totalFiberG: number
+  totalSodiumMg: number
   calorieBudget: number | null
   totalCalories: number
   remainingCalorieBudget: number | null
@@ -30,6 +42,26 @@ interface OptimiseResult {
 }
 
 interface ExplainState {
+  status: 'loading' | 'done' | 'error'
+  text?: string
+}
+
+interface PriceComparisonState {
+  status: 'loading' | 'done' | 'error'
+  stores?: { store_id: number; store_name: string; vendor_name: string; price_dollars: number }[]
+}
+
+interface PriceTrendState {
+  status: 'loading' | 'done' | 'error'
+  trend?: {
+    currentPriceDollars: number
+    weekAgoPriceDollars: number | null
+    changePct: number | null
+    historyPoints: number
+  } | null
+}
+
+interface BasketSummaryState {
   status: 'loading' | 'done' | 'error'
   text?: string
 }
@@ -55,11 +87,36 @@ function App() {
   const [result, setResult] = useState<OptimiseResult | null>(null)
   const [viewMode, setViewMode] = useState<'list' | 'table'>('list')
   const [explanations, setExplanations] = useState<Record<number, ExplainState>>({})
+  const [priceComparisons, setPriceComparisons] = useState<Record<number, PriceComparisonState>>({})
+  const [priceTrends, setPriceTrends] = useState<Record<number, PriceTrendState>>({})
+  const [basketSummary, setBasketSummary] = useState<BasketSummaryState | null>(null)
+
+  // Shareable link: on first load, a budget/calorieBudget/dietaryPreferences
+  // in the URL query string pre-fills the form and auto-runs the query, so
+  // a copied link reproduces the same result rather than just the blank form.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const urlBudget = params.get('budget')
+    if (!urlBudget) return
+
+    const urlCalorieBudget = params.get('calorieBudget') || ''
+    const urlDietary = params.get('dietaryPreferences')
+    const urlDietaryValues = urlDietary ? urlDietary.split(',').map((s) => s.trim()).filter(Boolean) : []
+
+    setBudget(urlBudget)
+    setCalorieBudget(urlCalorieBudget)
+    setDietaryPreferences(urlDietaryValues)
+    runOptimise(urlBudget, urlCalorieBudget, urlDietaryValues)
+    // Intentionally run once on mount only -- this reads the URL a user
+    // arrived with, it shouldn't re-fire as state changes afterward.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function runOptimise(budgetValue: string, calorieBudgetValue: string, dietaryValues: string[]) {
     setLoading(true)
     setError(null)
     setResult(null)
+    setBasketSummary(null)
 
     try {
       const params = new URLSearchParams({ budget: budgetValue })
@@ -72,6 +129,10 @@ function App() {
         throw new Error(body.error || `Request failed (${res.status})`)
       }
       setResult(await res.json())
+
+      // Update the address bar (not a navigation) so the current result is
+      // shareable via a copied link -- doesn't touch browser history.
+      window.history.replaceState(null, '', `${window.location.pathname}?${params}`)
     } catch (err: any) {
       setError(err.message || 'Something went wrong')
     } finally {
@@ -124,6 +185,71 @@ function App() {
       }))
     } catch {
       setExplanations((prev) => ({ ...prev, [item.product_id]: { status: 'error' } }))
+    }
+  }
+
+  async function fetchPriceComparison(item: OptimiseItem) {
+    setPriceComparisons((prev) => ({ ...prev, [item.product_id]: { status: 'loading' } }))
+
+    try {
+      const res = await fetch(`/api/price-comparison/${item.product_id}`)
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body.error || `Request failed (${res.status})`)
+
+      setPriceComparisons((prev) => ({
+        ...prev,
+        [item.product_id]: { status: 'done', stores: body.stores },
+      }))
+    } catch {
+      setPriceComparisons((prev) => ({ ...prev, [item.product_id]: { status: 'error' } }))
+    }
+  }
+
+  async function fetchPriceTrend(item: OptimiseItem) {
+    setPriceTrends((prev) => ({ ...prev, [item.product_id]: { status: 'loading' } }))
+
+    try {
+      const res = await fetch(`/api/price-trend/${item.product_id}`)
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body.error || `Request failed (${res.status})`)
+
+      setPriceTrends((prev) => ({
+        ...prev,
+        [item.product_id]: { status: 'done', trend: body.trend },
+      }))
+    } catch {
+      setPriceTrends((prev) => ({ ...prev, [item.product_id]: { status: 'error' } }))
+    }
+  }
+
+  async function fetchBasketSummary() {
+    if (!result) return
+    setBasketSummary({ status: 'loading' })
+
+    try {
+      const res = await fetch('/api/explain-basket', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          itemCount: result.items.length,
+          totalCost: result.totalCost,
+          totalProteinG: result.totalProteinG,
+          totalCalories: result.totalCalories,
+          totalFatG: result.totalFatG,
+          totalSaturatedFatG: result.totalSaturatedFatG,
+          totalCarbsG: result.totalCarbsG,
+          totalSugarsG: result.totalSugarsG,
+          totalFiberG: result.totalFiberG,
+          totalSodiumMg: result.totalSodiumMg,
+          topItemNames: result.items.slice(0, 5).map((i) => i.name),
+        }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body.error || `Request failed (${res.status})`)
+
+      setBasketSummary({ status: 'done', text: body.summary })
+    } catch {
+      setBasketSummary({ status: 'error' })
     }
   }
 
@@ -258,6 +384,14 @@ function App() {
               />
             </div>
 
+            <NutritionBreakdown result={result} />
+
+            <BasketSummaryBlock
+              summary={basketSummary}
+              onSummarize={fetchBasketSummary}
+              disabled={result.items.length === 0}
+            />
+
             {result.items.length === 0 ? (
               <p className="rounded-md border border-border bg-surface px-4 py-6 text-center text-sm text-muted">
                 No items fit that budget.
@@ -292,6 +426,10 @@ function App() {
                         item={item}
                         explanation={explanations[item.product_id]}
                         onExplain={() => fetchExplanation(item)}
+                        priceComparison={priceComparisons[item.product_id]}
+                        onCompareStores={() => fetchPriceComparison(item)}
+                        priceTrend={priceTrends[item.product_id]}
+                        onLoadPriceTrend={() => fetchPriceTrend(item)}
                       />
                     ))}
                   </ul>
@@ -300,6 +438,10 @@ function App() {
                     items={result.items}
                     explanations={explanations}
                     onExplain={fetchExplanation}
+                    priceComparisons={priceComparisons}
+                    onCompareStores={fetchPriceComparison}
+                    priceTrends={priceTrends}
+                    onLoadPriceTrend={fetchPriceTrend}
                   />
                 )}
               </>
@@ -327,11 +469,19 @@ function ItemRow({
   item,
   explanation,
   onExplain,
+  priceComparison,
+  onCompareStores,
+  priceTrend,
+  onLoadPriceTrend,
 }: {
   rank: number
   item: OptimiseItem
   explanation?: ExplainState
   onExplain: () => void
+  priceComparison?: PriceComparisonState
+  onCompareStores: () => void
+  priceTrend?: PriceTrendState
+  onLoadPriceTrend: () => void
 }) {
   return (
     <li className="flex flex-col gap-3 rounded-md border border-border bg-surface px-4 py-3 transition-colors hover:bg-surface-hover sm:flex-row sm:items-center">
@@ -357,7 +507,11 @@ function ItemRow({
           <div className="text-xs text-muted">
             {[item.brand, item.size, item.store_name].filter(Boolean).join(' · ')}
           </div>
-          <ExplainBlock explanation={explanation} onExplain={onExplain} />
+          <div className="mt-1 flex flex-wrap items-center gap-3">
+            <ExplainBlock explanation={explanation} onExplain={onExplain} />
+            <CompareStoresBlock comparison={priceComparison} onCompare={onCompareStores} />
+            <PriceTrendBlock trend={priceTrend} onLoad={onLoadPriceTrend} />
+          </div>
         </div>
       </div>
 
@@ -414,7 +568,7 @@ function ExplainBlock({
       <button
         type="button"
         onClick={onExplain}
-        className="mt-1 text-xs text-accent-400 underline-offset-2 hover:underline"
+        className="text-xs text-accent-400 underline-offset-2 hover:underline"
       >
         Why this pick? ✨
       </button>
@@ -422,7 +576,7 @@ function ExplainBlock({
   }
 
   if (explanation.status === 'loading') {
-    return <p className="mt-1 text-xs text-muted">Thinking…</p>
+    return <p className="text-xs text-muted">Thinking…</p>
   }
 
   if (explanation.status === 'error') {
@@ -430,110 +584,309 @@ function ExplainBlock({
       <button
         type="button"
         onClick={onExplain}
-        className="mt-1 text-xs text-accent-400 underline-offset-2 hover:underline"
+        className="text-xs text-accent-400 underline-offset-2 hover:underline"
       >
         Explanation unavailable -- retry?
       </button>
     )
   }
 
-  return <p className="mt-1 text-xs italic text-muted">{explanation.text}</p>
+  return <p className="w-full text-xs italic text-muted">{explanation.text}</p>
+}
+
+function CompareStoresBlock({
+  comparison,
+  onCompare,
+}: {
+  comparison?: PriceComparisonState
+  onCompare: () => void
+}) {
+  if (!comparison) {
+    return (
+      <button
+        type="button"
+        onClick={onCompare}
+        className="text-xs text-accent-400 underline-offset-2 hover:underline"
+      >
+        Compare stores
+      </button>
+    )
+  }
+
+  if (comparison.status === 'loading') {
+    return <p className="text-xs text-muted">Loading store prices…</p>
+  }
+
+  if (comparison.status === 'error' || !comparison.stores) {
+    return (
+      <button
+        type="button"
+        onClick={onCompare}
+        className="text-xs text-accent-400 underline-offset-2 hover:underline"
+      >
+        Store prices unavailable -- retry?
+      </button>
+    )
+  }
+
+  if (comparison.stores.length <= 1) {
+    return <p className="text-xs text-muted">Only tracked at one store.</p>
+  }
+
+  return (
+    <div className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs">
+      <ul className="flex flex-col gap-0.5">
+        {comparison.stores.map((s) => (
+          <li key={s.store_id} className="flex justify-between gap-3 text-muted">
+            <span>{s.store_name}</span>
+            <span className="text-foreground">NZD ${s.price_dollars.toFixed(2)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function PriceTrendBlock({ trend, onLoad }: { trend?: PriceTrendState; onLoad: () => void }) {
+  if (!trend) {
+    return (
+      <button
+        type="button"
+        onClick={onLoad}
+        className="text-xs text-accent-400 underline-offset-2 hover:underline"
+      >
+        Price trend
+      </button>
+    )
+  }
+
+  if (trend.status === 'loading') {
+    return <p className="text-xs text-muted">Checking price history…</p>
+  }
+
+  if (trend.status === 'error') {
+    return (
+      <button
+        type="button"
+        onClick={onLoad}
+        className="text-xs text-accent-400 underline-offset-2 hover:underline"
+      >
+        Price trend unavailable -- retry?
+      </button>
+    )
+  }
+
+  if (!trend.trend || trend.trend.changePct == null) {
+    return <p className="text-xs text-muted">Not enough price history yet.</p>
+  }
+
+  const { changePct } = trend.trend
+  const direction = changePct > 0.5 ? '↑' : changePct < -0.5 ? '↓' : '→'
+  const color = changePct > 0.5 ? 'text-accent-300' : changePct < -0.5 ? 'text-accent-400' : 'text-muted'
+
+  return (
+    <p className={`text-xs font-medium ${color}`} title="Cheapest observed price vs. ~7 days ago">
+      {direction} {Math.abs(changePct).toFixed(1)}% vs last week
+    </p>
+  )
+}
+
+type SortKey = 'price' | 'protein' | 'kcal' | 'proteinPerDollar' | 'pctCal'
+
+const SORT_ACCESSORS: Record<SortKey, (item: OptimiseItem) => number> = {
+  price: (i) => i.price_dollars,
+  protein: (i) => i.protein_g,
+  kcal: (i) => i.kcal,
+  proteinPerDollar: (i) => i.protein_per_dollar,
+  pctCal: (i) => i.protein_pct_of_calories,
 }
 
 function ItemsTable({
   items,
   explanations,
   onExplain,
+  priceComparisons,
+  onCompareStores,
+  priceTrends,
+  onLoadPriceTrend,
 }: {
   items: OptimiseItem[]
   explanations: Record<number, ExplainState>
   onExplain: (item: OptimiseItem) => void
+  priceComparisons: Record<number, PriceComparisonState>
+  onCompareStores: (item: OptimiseItem) => void
+  priceTrends: Record<number, PriceTrendState>
+  onLoadPriceTrend: (item: OptimiseItem) => void
 }) {
   const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [sortKey, setSortKey] = useState<SortKey | null>(null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const [vendorFilter, setVendorFilter] = useState('all')
+
+  // Rank stays tied to the optimiser's original order (the actual pick
+  // order for the budget fill) even when the user re-sorts or filters the
+  // table for browsing -- sorting is a display convenience, not a re-rank.
+  const rankByProductId = new Map(items.map((item, i) => [item.product_id, i + 1]))
+
+  const vendors = Array.from(new Set(items.map((i) => i.vendor_name))).sort()
+
+  const filteredItems = vendorFilter === 'all' ? items : items.filter((i) => i.vendor_name === vendorFilter)
+
+  const displayedItems = sortKey
+    ? [...filteredItems].sort((a, b) => {
+        const diff = SORT_ACCESSORS[sortKey](a) - SORT_ACCESSORS[sortKey](b)
+        return sortDir === 'asc' ? diff : -diff
+      })
+    : filteredItems
+
+  function handleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortKey(key)
+      setSortDir('asc')
+    }
+  }
+
+  function SortHeader({ label, sortableKey }: { label: string; sortableKey: SortKey }) {
+    const active = sortKey === sortableKey
+    return (
+      <th className="px-3 py-2 text-right font-medium">
+        <button
+          type="button"
+          onClick={() => handleSort(sortableKey)}
+          className={`inline-flex items-center gap-1 transition-colors hover:text-foreground ${active ? 'text-foreground' : ''}`}
+        >
+          {label}
+          {active && <span aria-hidden="true">{sortDir === 'asc' ? '▲' : '▼'}</span>}
+        </button>
+      </th>
+    )
+  }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-border">
-      <table className="w-full min-w-[860px] border-collapse text-sm">
-        <thead>
-          <tr className="border-b border-border bg-surface text-left text-xs text-muted">
-            <th className="px-3 py-2 font-medium">#</th>
-            <th className="px-3 py-2 font-medium">Photo</th>
-            <th className="px-3 py-2 font-medium">Item</th>
-            <th className="px-3 py-2 font-medium">Store</th>
-            <th className="px-3 py-2 font-medium text-right">Price (NZD $)</th>
-            <th className="px-3 py-2 font-medium text-right">Protein (g)</th>
-            <th className="px-3 py-2 font-medium text-right">Calories (kcal)</th>
-            <th className="px-3 py-2 font-medium text-right">Protein/NZD$ (g)</th>
-            <th className="px-3 py-2 font-medium text-right">% of cal from protein</th>
-            <th className="px-3 py-2 font-medium">Nutrition source</th>
-            <th className="px-3 py-2 font-medium">Why this pick?</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item, i) => {
-            const expanded = expandedId === item.product_id
-            const explanation = explanations[item.product_id]
-            return (
-              <Fragment key={item.product_id}>
-                <tr className="border-b border-border last:border-b-0 hover:bg-surface-hover">
-                  <td className="px-3 py-2 text-muted">{i + 1}</td>
-                  <td className="px-3 py-2">
-                    <Thumbnail src={item.image_url} alt={item.name} size="sm" />
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="font-medium">{item.name}</div>
-                    <div className="text-xs text-muted">
-                      {[item.brand, item.size].filter(Boolean).join(' · ')}
-                    </div>
-                  </td>
-                  <td className="px-3 py-2 text-muted">{item.store_name}</td>
-                  <td className="px-3 py-2 text-right">{item.price_dollars.toFixed(2)}</td>
-                  <td className="px-3 py-2 text-right">{item.protein_g.toFixed(0)}</td>
-                  <td className="px-3 py-2 text-right">{item.kcal.toFixed(0)}</td>
-                  <td className="px-3 py-2 text-right font-semibold text-accent-400">
-                    {item.protein_per_dollar.toFixed(1)}
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    {(item.protein_pct_of_calories * 100).toFixed(0)}%
-                  </td>
-                  <td className="px-3 py-2 text-xs text-muted">
-                    {item.nutrition_source === 'curated-reference' ? 'Estimated' : 'Matched'}
-                  </td>
-                  <td className="px-3 py-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setExpandedId(expanded ? null : item.product_id)
-                        if (!explanation) onExplain(item)
-                      }}
-                      className="text-xs text-accent-400 underline-offset-2 hover:underline"
-                    >
-                      {expanded ? 'Hide' : 'Why? ✨'}
-                    </button>
-                  </td>
-                </tr>
-                {expanded && (
-                  <tr className="border-b border-border bg-background">
-                    <td colSpan={11} className="px-3 py-2 text-xs italic text-muted">
-                      {explanation?.status === 'loading' && 'Thinking…'}
-                      {explanation?.status === 'error' && (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-2 self-end text-xs">
+        <label className="text-muted">Store:</label>
+        <select
+          value={vendorFilter}
+          onChange={(e) => setVendorFilter(e.target.value)}
+          className="rounded border border-border bg-surface px-2 py-1 text-foreground outline-none focus:border-accent-500"
+        >
+          <option value="all">All stores</option>
+          {vendors.map((v) => (
+            <option key={v} value={v}>
+              {v}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="overflow-x-auto rounded-md border border-border">
+        <table className="w-full min-w-[860px] border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-border bg-surface text-left text-xs text-muted">
+              <th className="px-3 py-2 font-medium">#</th>
+              <th className="px-3 py-2 font-medium">Photo</th>
+              <th className="px-3 py-2 font-medium">Item</th>
+              <th className="px-3 py-2 font-medium">Store</th>
+              <SortHeader label="Price (NZD $)" sortableKey="price" />
+              <SortHeader label="Protein (g)" sortableKey="protein" />
+              <SortHeader label="Calories (kcal)" sortableKey="kcal" />
+              <SortHeader label="Protein/NZD$ (g)" sortableKey="proteinPerDollar" />
+              <SortHeader label="% of cal from protein" sortableKey="pctCal" />
+              <th className="px-3 py-2 font-medium">Nutrition source</th>
+              <th className="px-3 py-2 font-medium">Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayedItems.length === 0 ? (
+              <tr>
+                <td colSpan={11} className="px-3 py-6 text-center text-sm text-muted">
+                  No items from this store in the current results.
+                </td>
+              </tr>
+            ) : (
+              displayedItems.map((item) => {
+                const expanded = expandedId === item.product_id
+                const explanation = explanations[item.product_id]
+                return (
+                  <Fragment key={item.product_id}>
+                    <tr className="border-b border-border last:border-b-0 hover:bg-surface-hover">
+                      <td className="px-3 py-2 text-muted">{rankByProductId.get(item.product_id)}</td>
+                      <td className="px-3 py-2">
+                        <Thumbnail src={item.image_url} alt={item.name} size="sm" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="font-medium">{item.name}</div>
+                        <div className="text-xs text-muted">
+                          {[item.brand, item.size].filter(Boolean).join(' · ')}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-muted">{item.store_name}</td>
+                      <td className="px-3 py-2 text-right">{item.price_dollars.toFixed(2)}</td>
+                      <td className="px-3 py-2 text-right">{item.protein_g.toFixed(0)}</td>
+                      <td className="px-3 py-2 text-right">{item.kcal.toFixed(0)}</td>
+                      <td className="px-3 py-2 text-right font-semibold text-accent-400">
+                        {item.protein_per_dollar.toFixed(1)}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {(item.protein_pct_of_calories * 100).toFixed(0)}%
+                      </td>
+                      <td className="px-3 py-2 text-xs text-muted">
+                        {item.nutrition_source === 'curated-reference' ? 'Estimated' : 'Matched'}
+                      </td>
+                      <td className="px-3 py-2">
                         <button
                           type="button"
-                          onClick={() => onExplain(item)}
-                          className="not-italic text-accent-400 underline-offset-2 hover:underline"
+                          onClick={() => {
+                            setExpandedId(expanded ? null : item.product_id)
+                            if (!explanation) onExplain(item)
+                          }}
+                          className="text-xs text-accent-400 underline-offset-2 hover:underline"
                         >
-                          Explanation unavailable -- retry?
+                          {expanded ? 'Hide' : 'Details ▾'}
                         </button>
-                      )}
-                      {explanation?.status === 'done' && explanation.text}
-                    </td>
-                  </tr>
-                )}
-              </Fragment>
-            )
-          })}
-        </tbody>
-      </table>
+                      </td>
+                    </tr>
+                    {expanded && (
+                      <tr className="border-b border-border bg-background">
+                        <td colSpan={11} className="px-3 py-3">
+                          <div className="flex flex-col gap-2">
+                            <div className="text-xs italic text-muted">
+                              {explanation?.status === 'loading' && 'Thinking…'}
+                              {explanation?.status === 'error' && (
+                                <button
+                                  type="button"
+                                  onClick={() => onExplain(item)}
+                                  className="not-italic text-accent-400 underline-offset-2 hover:underline"
+                                >
+                                  Explanation unavailable -- retry?
+                                </button>
+                              )}
+                              {explanation?.status === 'done' && explanation.text}
+                            </div>
+                            <div className="flex flex-wrap items-start gap-4">
+                              <CompareStoresBlock
+                                comparison={priceComparisons[item.product_id]}
+                                onCompare={() => onCompareStores(item)}
+                              />
+                              <PriceTrendBlock
+                                trend={priceTrends[item.product_id]}
+                                onLoad={() => onLoadPriceTrend(item)}
+                              />
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                )
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
@@ -636,6 +989,84 @@ function Glossary() {
         </div>
       </div>
     </details>
+  )
+}
+
+function NutritionBreakdown({ result }: { result: OptimiseResult }) {
+  return (
+    <details className="rounded-md border border-border bg-surface">
+      <summary className="cursor-pointer list-none px-4 py-2.5 text-xs font-medium text-muted transition-colors hover:text-foreground">
+        Full nutrition breakdown (fat, carbs, fiber, sodium)
+      </summary>
+      <div className="grid grid-cols-2 gap-3 border-t border-border px-4 py-3 sm:grid-cols-3">
+        <MicroStat label="Fat" value={`${result.totalFatG.toFixed(0)}g`} />
+        <MicroStat label="Saturated fat" value={`${result.totalSaturatedFatG.toFixed(0)}g`} />
+        <MicroStat label="Carbs" value={`${result.totalCarbsG.toFixed(0)}g`} />
+        <MicroStat label="Sugars" value={`${result.totalSugarsG.toFixed(0)}g`} />
+        <MicroStat label="Fiber" value={`${result.totalFiberG.toFixed(0)}g`} />
+        <MicroStat label="Sodium" value={`${result.totalSodiumMg.toFixed(0)}mg`} />
+      </div>
+      <p className="border-t border-border px-4 py-2 text-xs text-muted">
+        Totals only include items that reported that nutrient -- most micros
+        are missing for a lot of products (see the glossary above), so these
+        are likely undercounts, not exact totals.
+      </p>
+    </details>
+  )
+}
+
+function MicroStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-[11px] text-muted">{label}</div>
+      <div className="text-sm font-medium">{value}</div>
+    </div>
+  )
+}
+
+function BasketSummaryBlock({
+  summary,
+  onSummarize,
+  disabled,
+}: {
+  summary: BasketSummaryState | null
+  onSummarize: () => void
+  disabled: boolean
+}) {
+  if (disabled) return null
+
+  if (!summary) {
+    return (
+      <button
+        type="button"
+        onClick={onSummarize}
+        className="self-start text-sm text-accent-400 underline-offset-2 hover:underline"
+      >
+        Summarize this basket ✨
+      </button>
+    )
+  }
+
+  if (summary.status === 'loading') {
+    return <p className="text-sm text-muted">Summarizing…</p>
+  }
+
+  if (summary.status === 'error') {
+    return (
+      <button
+        type="button"
+        onClick={onSummarize}
+        className="self-start text-sm text-accent-400 underline-offset-2 hover:underline"
+      >
+        Summary unavailable -- retry?
+      </button>
+    )
+  }
+
+  return (
+    <div className="rounded-md border border-border bg-surface px-4 py-3 text-sm italic text-muted">
+      {summary.text}
+    </div>
   )
 }
 

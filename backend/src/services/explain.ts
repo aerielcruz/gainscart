@@ -2,10 +2,9 @@
 // deterministic ranking in optimiser.ts. This never influences ranking or
 // filtering; it only narrates a result that's already been computed, so a
 // bad/unavailable LLM response degrades to "explanation unavailable," not a
-// wrong grocery list. Uses Groq's free tier (OpenAI-compatible chat
-// completions API) since this is a research prototype with no ongoing
-// budget for paid API calls -- switched from Gemini after finding that
-// provider's free tier had a 0-request quota for this account/region.
+// wrong grocery list. See groq.ts for the underlying API call.
+
+import { callGroq } from './groq.js'
 
 export interface ExplainableItem {
   name: string
@@ -56,41 +55,11 @@ All prices are in New Zealand dollars (NZD) -- say "NZD" or "$NZ" when mentionin
 }
 
 export async function explainPick(item: ExplainableItem): Promise<string> {
-  const apiKey = process.env.GROQ_API_KEY
-  if (!apiKey) {
-    throw new Error('GROQ_API_KEY is not configured on the server')
-  }
-
   const key = cacheKey(item)
   const cached = cache.get(key)
   if (cached) return cached
 
-  const model = process.env.GROQ_MODEL || 'llama-3.1-8b-instant'
-  const url = 'https://api.groq.com/openai/v1/chat/completions'
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: 'user', content: buildPrompt(item) }],
-    }),
-  })
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`Groq request failed (${res.status}): ${body.slice(0, 200)}`)
-  }
-
-  const data: any = await res.json()
-  const text = data.choices?.[0]?.message?.content?.trim()
-  if (!text) {
-    throw new Error('Groq response had no explanation text')
-  }
-
+  const text = await callGroq(buildPrompt(item))
   cache.set(key, text)
   return text
 }
