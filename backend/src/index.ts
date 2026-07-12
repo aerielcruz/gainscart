@@ -4,6 +4,7 @@ import cors from 'cors'
 import { connectDB } from './config/db.js'
 import { healthRouter } from './routes/health.js'
 import { optimiseRouter } from './routes/optimise.js'
+import { explainRouter } from './routes/explain.js'
 
 const app = express()
 const port = process.env.PORT || 4000
@@ -13,6 +14,7 @@ app.use(express.json())
 
 app.use('/api/health', healthRouter)
 app.use('/api/optimise', optimiseRouter)
+app.use('/api/explain', explainRouter)
 
 async function main() {
   await connectDB()

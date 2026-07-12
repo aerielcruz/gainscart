@@ -17,6 +17,11 @@ const productSchema = new Schema({
     // (category-level estimate, not a product-specific lookup).
     source: { type: String, enum: ['openfoodfacts', 'curated-reference', null], default: null },
     off_product_name: String,
+    // Community-uploaded product photo from OFF -- only ever set when
+    // source is 'openfoodfacts' (curated-reference fresh foods have no
+    // barcode to fetch a photo for). Coverage is independent of nutrition
+    // match rate -- a matched product can still have no photo.
+    image_url: String,
     // Which curated category matched (e.g. 'chicken_breast') -- only set
     // when source is 'curated-reference'. QA field, same purpose as
     // off_product_name above.

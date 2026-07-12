@@ -36,7 +36,7 @@ function vegetarianStatus(tags) {
 }
 
 async function fetchOnce(candidateBarcode) {
-  const url = `https://world.openfoodfacts.org/api/v2/product/${candidateBarcode}.json?fields=code,product_name,nutriments,ingredients_analysis_tags,allergens_tags`
+  const url = `https://world.openfoodfacts.org/api/v2/product/${candidateBarcode}.json?fields=code,product_name,nutriments,ingredients_analysis_tags,allergens_tags,image_front_url`
   const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } })
 
   if (!res.ok) return { found: false }
@@ -51,6 +51,10 @@ async function fetchOnce(candidateBarcode) {
   return {
     found: true,
     productName: data.product.product_name || null,
+    // Community-uploaded photo of the product front -- not guaranteed to
+    // exist even on a matched product (OFF's photo coverage is separate
+    // from its data coverage).
+    imageUrl: data.product.image_front_url || null,
     per100g: {
       energy_kj: n['energy-kj_100g'] ?? n['energy_100g'] ?? null,
       protein_g: n['proteins_100g'] ?? null,

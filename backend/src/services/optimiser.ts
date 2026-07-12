@@ -179,6 +179,11 @@ export async function getOptimisedList(
       // evidence tier, surfaced here rather than blended silently.
       nutrition_source: product.nutrition.source,
       matched_category: product.nutrition.matched_category ?? null,
+      // Only ever set for openfoodfacts matches -- curated-reference fresh
+      // foods have no barcode to fetch a photo for. Not guaranteed even
+      // then, since OFF's photo coverage is separate from its data
+      // coverage (see offLookup.js).
+      image_url: product.nutrition.image_url ?? null,
     })
   }
 

@@ -92,6 +92,65 @@ the most intuitive "protein foods" -- barely appear in results.**
     protein-density/ratio thresholds below: a defensible default, not an
     empirically validated one.
 
+## Product photo coverage
+
+- Product photos (`nutrition.image_url`) are sourced from OFF's
+  `image_front_url` field, fetched at the same time as nutrition data --
+  only available for the `openfoodfacts`-matched slice (**5,265** products),
+  never for `curated-reference` fresh foods (no barcode to fetch a photo
+  for by definition).
+- Of those 5,265 OFF-matched products, only **895 (17.0%)** have a photo on
+  file. Photo coverage is a separate crowd-sourcing effort from data
+  coverage -- a product can have verified nutrition and still have no
+  community-uploaded image.
+- **Coverage skews away from the items the optimiser actually recommends.**
+  OFF's photo contributions concentrate on prominent/branded packaged goods;
+  the cheap bulk staples that usually win on protein-per-dollar (lentils,
+  frozen berries, tinned tuna) are exactly the category least likely to have
+  one. At a typical $30-50 budget, it's common for **zero** returned items
+  to have a photo -- this is expected given the above, not a rendering bug.
+  The frontend shows a 🛒 placeholder wherever no photo is on file.
+
+## Incident: image backfill briefly broke fresh-food matching
+
+Recorded as a measured incident (per this document's framing), not scrubbed
+from the record -- the bug, its detection, and its fix.
+
+- Adding `nutrition.image_url` required a backfill pass over already-matched
+  products in `sync-nutrition.js`. The backfill's selection query (`matched:
+  true` + a field missing) pulled in `curated-reference` fresh-food matches
+  (chicken, beef, lamb, fish -- see above) for the first time, since those
+  had never had `image_url` either.
+- Those products have no barcode by design (matched by product-name keyword,
+  not GS1 barcode). The script's existing "no barcode" guard clause --
+  written when only genuinely-unmatched products could reach it -- fired
+  for them too, and unconditionally set `nutrition.matched: false`.
+  **Result: 4,465 correctly-matched fresh/weighed-food products were
+  silently dropped from the optimiser's candidate pool** (which filters on
+  `matched: true`), while their actual `per_100g` nutrition data sat
+  untouched and correct in the same document -- a mismatch between two
+  fields that should never disagree.
+- **Caught by:** a routine post-backfill sanity check (comparing
+  `matched: true` counts before/after) surfaced a count drop that a
+  single-field check wouldn't have. Root-caused by tracing a sample
+  affected document (`Lamb Chops Shoulder Marinated`) -- valid
+  `per_100g`/`matched_category` alongside `matched: false` doesn't occur
+  anywhere else in the pipeline's logic, which pinpointed the guard clause.
+- **Fixed:** the guard clause now checks `nutrition.source ===
+  'curated-reference'` first and leaves those records' `matched` status
+  alone. **Repaired:** the 4,465 affected documents were restored via a
+  scoped `matched: true` update (filtered on `source: 'curated-reference'`
+  + `matched: false` + non-null `per_100g.protein_g`, so it could only ever
+  touch documents in exactly this broken state) -- verified afterward that
+  `matched: true` count (11,372) again equals `openfoodfacts` (5,265) +
+  `curated-reference` (6,107) matches, and a re-run of the fixed script
+  against a fresh batch showed no recurrence.
+- **Why it matters for the write-up:** this is a concrete example of the
+  general risk in evolving a schema incrementally across pipeline scripts
+  that assume different invariants about the same field (`matched`) --
+  worth a mention if the report discusses pipeline maintainability, not
+  just one-time data quality.
+
 ## Barcode-format-guessing risks false-positive matches
 
 To improve match rate, barcode lookups try the barcode as given, fully
