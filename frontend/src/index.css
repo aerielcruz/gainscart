@@ -2,15 +2,13 @@
 
 @theme {
   /* Base surfaces: black / near-black page, gym-app aesthetic, not SaaS
-     pastel. Cards (--color-surface) are plain white in *dark* mode only,
-     so they pop against the black page -- see the .bg-surface override
-     below for why that needs its own text-color handling. Light mode
-     overrides this back to a subtle off-white below, since its page
-     background is already white -- an all-white card there would have no
-     visible boundary. */
+     pastel. Cards (--color-surface) stay dark here too, just a step
+     lighter than the page, so they read as a distinct panel without
+     needing a text-color override. Plain-white cards are light mode's
+     thing -- see the override below. */
   --color-background: #0a0a0a;
-  --color-surface: #ffffff;
-  --color-surface-hover: #f4f4f5;
+  --color-surface: #141414;
+  --color-surface-hover: #1c1c1c;
   --color-border: #262626;
 
   --color-foreground: #ffffff;
@@ -37,63 +35,20 @@
 }
 
 /*
- * Cards are plain white in dark mode (see --color-surface above), but the
- * *page* background/text stays near-black + white text there. That means
- * text sitting directly on a card can't just inherit the page's white
- * foreground/light-gray muted/light-blue accent -- those would be
- * unreadable on white. Scoped to .bg-surface (not global) so page-level
- * text against the dark page background is unaffected, and CSS custom
- * properties cascade to descendants for free -- no component changes
- * needed. In light mode this block is redundant with the theme-level
- * override further down (same values either way), which is harmless.
- * accent-300/600/900 aren't included here because everywhere they're used
- * as text, it's paired with their own dark chip background (e.g.
- * `bg-accent-900 text-accent-300`), which stays self-contained regardless
- * of the outer card's color.
- */
-.bg-surface {
-  --color-foreground: #0a0a0a;
-  --color-muted: #52525b;
-  --color-border: #d4d4d8;
-  --color-accent-400: #1d4ed8;
-  --color-accent-500: #1e40af;
-}
-
-/*
- * Small inset boxes (rank badges, thumbnail placeholders, the price-
- * comparison list) use bg-background rather than bg-surface, and stay
- * theme-dependent (near-black in dark mode) even when nested inside a
- * now-always-white .bg-surface card. Without this, they'd inherit the
- * .bg-surface override above and render dark text on their own dark
- * background -- restores the page-level theme colors specifically for
- * elements sitting on bg-background, regardless of what they're nested
- * in. A directly-declared custom property always wins over an inherited
- * one, so this correctly overrides .bg-surface's inheritance here.
- */
-.bg-background {
-  --color-foreground: #ffffff;
-  --color-muted: #a3a3a3;
-  --color-border: #262626;
-}
-:root[data-theme='light'] .bg-background {
-  --color-foreground: #0a0a0a;
-  --color-muted: #52525b;
-  --color-border: #d4d4d8;
-}
-
-/*
  * Light mode is opt-in (toggled via src/theme.ts, applied as a `data-theme`
  * attribute on <html>) -- dark stays the default per CLAUDE.md's aesthetic.
- * Restores a subtle off-white card (distinct from the white page
- * background) instead of dark mode's plain-white -- a card can't be the
- * same color as the page behind it, or its boundary disappears.
- * accent-300/600/900 are left alone for the same self-contained-chip
- * reason as the .bg-surface block.
+ * Cards go plain white here (matching the white page background) rather
+ * than dark mode's off-black-on-black -- readability was the ask, and the
+ * border/shadow already drawn around cards keeps the boundary visible even
+ * though card and page share a color. accent-300/600/900 are left alone
+ * because everywhere they're used as text, it's paired with their own dark
+ * chip background (e.g. `bg-accent-900 text-accent-300`), which stays
+ * self-contained regardless of page theme.
  */
 :root[data-theme='light'] {
   --color-background: #ffffff;
-  --color-surface: #f4f4f5;
-  --color-surface-hover: #e4e4e7;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f4f4f5;
   --color-border: #d4d4d8;
 
   --color-foreground: #0a0a0a;
