@@ -578,14 +578,17 @@ function ItemRow({
         </div>
       </div>
 
-      <div className="flex shrink-0 flex-col gap-0.5 pl-10 sm:items-end sm:pl-0">
-        <span className="font-semibold text-accent-400">
-          {item.protein_per_dollar.toFixed(1)} g/NZD$
-        </span>
-        <span className="text-xs text-muted">
-          NZD ${item.price_dollars.toFixed(2)} · {item.protein_g.toFixed(0)}g protein ·{' '}
-          {item.kcal.toFixed(0)}kcal · {(item.protein_pct_of_calories * 100).toFixed(0)}% of cal
-        </span>
+      <div className="flex shrink-0 flex-col gap-2 pl-10 sm:pl-0">
+        <div className="rounded-md border border-accent-900 bg-accent-900/10 px-3 py-1.5 text-center">
+          <div className="text-[10px] uppercase tracking-wide text-muted">Protein per dollar</div>
+          <div className="text-lg font-bold text-accent-400">{item.protein_per_dollar.toFixed(1)} g/NZD$</div>
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          <Stat size="sm" label="Price" value={`NZD $${item.price_dollars.toFixed(2)}`} />
+          <Stat size="sm" label="Protein" value={`${item.protein_g.toFixed(0)}g`} />
+          <Stat size="sm" label="Calories" value={`${item.kcal.toFixed(0)} kcal`} />
+          <Stat size="sm" label="From protein" value={`${(item.protein_pct_of_calories * 100).toFixed(0)}%`} />
+        </div>
       </div>
     </li>
   )
@@ -1191,7 +1194,16 @@ function BasketSummaryBlock({
   )
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, size = 'md' }: { label: string; value: string; size?: 'sm' | 'md' }) {
+  if (size === 'sm') {
+    return (
+      <div className="rounded border border-border bg-background px-2 py-1.5 text-center">
+        <div className="text-[9px] uppercase tracking-wide text-muted">{label}</div>
+        <div className="text-xs font-semibold">{value}</div>
+      </div>
+    )
+  }
+
   return (
     <div className="rounded-md border border-border bg-surface px-4 py-3">
       <div className="text-xs text-muted">{label}</div>
