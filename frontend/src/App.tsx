@@ -275,7 +275,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="bg-dot-grid min-h-screen bg-background text-foreground">
       <header className="flex items-center justify-between border-b border-border px-6 py-4">
         <h1 className="text-xl font-semibold tracking-tight">
           Gains<span className="text-accent-500">Cart</span>
@@ -322,7 +322,7 @@ function App() {
                   required
                   value={budget}
                   onChange={(e) => setBudget(e.target.value)}
-                  className="w-36 rounded-md border border-border bg-surface py-2 pl-7 pr-3 text-foreground outline-none focus:border-accent-500"
+                  className="w-36 rounded-xl border border-border bg-surface py-2 pl-7 pr-3 text-foreground outline-none focus:border-accent-500"
                 />
               </div>
             </label>
@@ -336,14 +336,14 @@ function App() {
                 placeholder="No limit"
                 value={calorieBudget}
                 onChange={(e) => setCalorieBudget(e.target.value)}
-                className="w-36 rounded-md border border-border bg-surface px-3 py-2 text-foreground outline-none placeholder:text-muted focus:border-accent-500"
+                className="w-36 rounded-xl border border-border bg-surface px-3 py-2 text-foreground outline-none placeholder:text-muted focus:border-accent-500"
               />
             </label>
 
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 rounded-md bg-accent-600 px-4 py-2 font-medium text-white transition-colors hover:bg-accent-500 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex items-center gap-2 rounded-xl bg-accent-600 px-4 py-2 font-medium text-white transition-colors hover:bg-accent-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading && <Spinner />}
               {loading ? 'Optimising…' : 'Optimise'}
@@ -425,7 +425,7 @@ function App() {
         </form>
 
         {error && (
-          <div className="rounded-md border border-accent-900 bg-surface px-4 py-3 text-sm text-accent-300">
+          <div className="rounded-xl border border-accent-900 bg-surface px-4 py-3 text-sm text-accent-300">
             {error}
           </div>
         )}
@@ -455,13 +455,13 @@ function App() {
             />
 
             {result.items.length === 0 ? (
-              <p className="rounded-md border border-border bg-surface px-4 py-6 text-center text-sm text-muted">
+              <p className="rounded-xl border border-border bg-surface px-4 py-6 text-center text-sm text-muted">
                 No items fit that budget.
               </p>
             ) : (
               <>
                 <div className="flex justify-end">
-                  <div className="inline-flex rounded-md border border-border p-0.5">
+                  <div className="inline-flex rounded-xl border border-border p-0.5">
                     {(['list', 'table'] as const).map((mode) => (
                       <button
                         key={mode}
@@ -546,9 +546,9 @@ function ItemRow({
   onLoadPriceTrend: () => void
 }) {
   return (
-    <li className="flex flex-col gap-3 rounded-md border border-border bg-surface px-4 py-3 transition-colors hover:bg-surface-hover sm:flex-row sm:items-center">
+    <li className="flex flex-col gap-3 rounded-xl border border-border bg-surface px-4 py-3 transition-colors hover:bg-surface-hover sm:flex-row sm:items-center">
       <div className="flex min-w-0 flex-1 items-center gap-3">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-background text-xs font-medium text-muted">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent-400 to-cyan-500 text-xs font-semibold text-white">
           {rank}
         </span>
 
@@ -560,7 +560,7 @@ function ItemRow({
             {item.nutrition_source === 'curated-reference' && (
               <span
                 title="Nutrition is a category-level estimate (e.g. generic chicken breast), not a verified product match -- see LIMITATIONS.md"
-                className="shrink-0 rounded-full border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted"
+                className="shrink-0 rounded-full border border-orange-500 bg-orange-900/40 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-orange-400"
               >
                 Estimated
               </span>
@@ -598,7 +598,7 @@ function Thumbnail({ src, alt, size = 'md' }: { src: string | null; alt: string;
     return (
       <div
         title="No product photo available"
-        className={`flex ${dimensions} shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted`}
+        className={`flex ${dimensions} shrink-0 items-center justify-center rounded-xl border border-border bg-background text-muted`}
       >
         <span className="text-lg" aria-hidden="true">
           🛒
@@ -613,7 +613,7 @@ function Thumbnail({ src, alt, size = 'md' }: { src: string | null; alt: string;
       alt={alt}
       loading="lazy"
       onError={() => setBroken(true)}
-      className={`${dimensions} shrink-0 rounded-md border border-border bg-background object-cover`}
+      className={`${dimensions} shrink-0 rounded-xl border border-border bg-background object-cover`}
     />
   )
 }
@@ -743,8 +743,10 @@ function PriceTrendBlock({ trend, onLoad }: { trend?: PriceTrendState; onLoad: (
   }
 
   const { changePct } = trend.trend
+  // Price up = caution (orange), price down = good news (cyan) -- same
+  // semantic pairing as the Estimated/Matched badges, not just decoration.
   const direction = changePct > 0.5 ? '↑' : changePct < -0.5 ? '↓' : '→'
-  const color = changePct > 0.5 ? 'text-accent-300' : changePct < -0.5 ? 'text-accent-400' : 'text-muted'
+  const color = changePct > 0.5 ? 'text-orange-400' : changePct < -0.5 ? 'text-cyan-400' : 'text-muted'
 
   return (
     <p className={`text-xs font-medium ${color}`} title="Cheapest observed price vs. ~7 days ago">
@@ -844,7 +846,7 @@ function ItemsTable({
         </select>
       </div>
 
-      <div className="overflow-x-auto rounded-md border border-border">
+      <div className="overflow-x-auto rounded-xl border border-border">
         <table className="w-full min-w-[860px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-border bg-surface text-left text-xs text-muted">
@@ -895,8 +897,16 @@ function ItemsTable({
                       <td className="px-3 py-2 text-right">
                         {(item.protein_pct_of_calories * 100).toFixed(0)}%
                       </td>
-                      <td className="px-3 py-2 text-xs text-muted">
-                        {item.nutrition_source === 'curated-reference' ? 'Estimated' : 'Matched'}
+                      <td className="px-3 py-2">
+                        {item.nutrition_source === 'curated-reference' ? (
+                          <span className="rounded-full border border-orange-500 bg-orange-900/40 px-2 py-0.5 text-[10px] uppercase tracking-wide text-orange-400">
+                            Estimated
+                          </span>
+                        ) : (
+                          <span className="rounded-full border border-cyan-500 bg-cyan-900/40 px-2 py-0.5 text-[10px] uppercase tracking-wide text-cyan-400">
+                            Matched
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-2">
                         <button
@@ -955,7 +965,7 @@ function ItemsTable({
 
 function Glossary() {
   return (
-    <details className="group rounded-md border border-border bg-surface">
+    <details className="glass-card group rounded-xl">
       <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-muted transition-colors hover:text-foreground">
         <span className="text-accent-400">New here?</span> What the numbers
         mean and how to use this app
@@ -1071,7 +1081,7 @@ function Glossary() {
 
 function NutritionBreakdown({ result }: { result: OptimiseResult }) {
   return (
-    <details className="rounded-md border border-border bg-surface">
+    <details className="glass-card rounded-xl">
       <summary className="cursor-pointer list-none px-4 py-2.5 text-xs font-medium text-muted transition-colors hover:text-foreground">
         Full nutrition breakdown (fat, carbs, fiber, sodium)
       </summary>
@@ -1141,7 +1151,7 @@ function BasketSummaryBlock({
   }
 
   return (
-    <div className="rounded-md border border-border bg-surface px-4 py-3 text-sm italic text-muted">
+    <div className="glass-card rounded-xl px-4 py-3 text-sm italic text-muted">
       {summary.text}
     </div>
   )
@@ -1149,7 +1159,7 @@ function BasketSummaryBlock({
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-border bg-surface px-4 py-3">
+    <div className="rounded-xl border border-border bg-surface px-4 py-3">
       <div className="text-xs text-muted">{label}</div>
       <div className="text-lg font-semibold">{value}</div>
     </div>

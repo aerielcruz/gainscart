@@ -137,7 +137,7 @@ export default function SurveyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="bg-dot-grid min-h-screen bg-background text-foreground">
       <header className="flex items-center justify-between border-b border-border px-6 py-4">
         <a href="/" className="text-xl font-semibold tracking-tight">
           Gains<span className="text-accent-500">Cart</span>
@@ -152,7 +152,7 @@ export default function SurveyPage() {
         </h1>
 
         {submitted ? (
-          <div className="mt-6 flex flex-col gap-4 rounded-lg border border-border bg-surface px-8 py-10 text-base text-muted">
+          <div className="glass-card mt-6 flex flex-col gap-4 rounded-xl px-8 py-10 text-base text-muted">
             <p className="text-xl font-semibold text-foreground">Thank you for your time!</p>
             <p className="leading-relaxed">
               Your response has been recorded anonymously. If you would like a summary of the
@@ -161,7 +161,7 @@ export default function SurveyPage() {
             </p>
             <a
               href="/"
-              className="mt-2 self-start rounded-md bg-accent-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-500"
+              className="mt-2 self-start rounded-xl bg-accent-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-500"
             >
               Back to GainsCart
             </a>
@@ -177,7 +177,7 @@ export default function SurveyPage() {
                 and tried at least one of the "Why this pick?" or "Compare stores" features.
               </p>
 
-              <label className="flex items-start gap-3 rounded-lg border border-accent-900 bg-accent-900/10 px-5 py-4">
+              <label className="flex items-start gap-3 rounded-xl border border-accent-900 bg-accent-900/10 px-5 py-4">
                 <input
                   type="checkbox"
                   checked={consent}
@@ -212,7 +212,7 @@ export default function SurveyPage() {
                   placeholder="Please specify"
                   value={fitnessRelationshipOther}
                   onChange={(e) => setFitnessRelationshipOther(e.target.value)}
-                  className="rounded-md border border-border bg-surface px-4 py-2.5 text-foreground outline-none focus:border-accent-500"
+                  className="rounded-xl border border-border bg-surface px-4 py-2.5 text-foreground outline-none focus:border-accent-500"
                 />
               )}
 
@@ -279,7 +279,7 @@ export default function SurveyPage() {
             </Section>
 
             {error && (
-              <div className="rounded-md border border-accent-900 bg-surface px-5 py-4 text-base text-accent-300">
+              <div className="rounded-xl border border-accent-900 bg-surface px-5 py-4 text-base text-accent-300">
                 {error}
               </div>
             )}
@@ -288,7 +288,7 @@ export default function SurveyPage() {
               <button
                 type="submit"
                 disabled={!canSubmit || submitting}
-                className="self-start rounded-md bg-accent-600 px-6 py-3 text-base font-medium text-white transition-colors hover:bg-accent-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="self-start rounded-xl bg-accent-600 px-6 py-3 text-base font-medium text-white transition-colors hover:bg-accent-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {submitting ? 'Submitting…' : 'Submit survey'}
               </button>
@@ -380,7 +380,7 @@ function OpenTextQuestion({
         onChange={(e) => onChange(e.target.value)}
         rows={3}
         maxLength={2000}
-        className="resize-y rounded-md border border-border bg-surface px-4 py-3 text-foreground outline-none focus:border-accent-500"
+        className="resize-y rounded-xl border border-border bg-surface px-4 py-3 text-foreground outline-none focus:border-accent-500"
       />
     </label>
   )
@@ -419,7 +419,7 @@ function LikertRow({
   onChange: (v: number) => void
 }) {
   return (
-    <div className="rounded-lg border border-border bg-surface px-5 py-5 sm:px-7 sm:py-6">
+    <div className="rounded-xl border border-border bg-surface px-5 py-5 sm:px-7 sm:py-6">
       <p className="mb-5 text-base leading-relaxed text-foreground">{statement}</p>
       <div className="grid grid-cols-5 gap-1.5 sm:gap-3">
         {LIKERT_LABELS.map((label, i) => {
@@ -430,7 +430,7 @@ function LikertRow({
               key={label}
               type="button"
               onClick={() => onChange(optionValue)}
-              className={`flex flex-col items-center gap-2 rounded-md border px-1 py-3 text-center transition-colors sm:px-2 ${
+              className={`flex flex-col items-center gap-2 rounded-xl border px-1 py-3 text-center transition-colors sm:px-2 ${
                 active
                   ? 'border-accent-500 bg-accent-900'
                   : 'border-border hover:border-accent-500'
