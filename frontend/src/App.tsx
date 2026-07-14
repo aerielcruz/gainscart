@@ -1,4 +1,6 @@
 import { Fragment, useEffect, useState } from 'react'
+import { getInitialTheme, applyTheme, type Theme } from './theme'
+import ThemeToggle from './ThemeToggle'
 
 interface OptimiseItem {
   product_id: number
@@ -85,6 +87,7 @@ const RANK_OPTIONS: { value: 'value' | 'protein_density'; label: string; hint: s
 ]
 
 function App() {
+  const [theme, setTheme] = useState<Theme>(getInitialTheme)
   const [budget, setBudget] = useState('50')
   const [calorieBudget, setCalorieBudget] = useState('')
   const [dietaryPreferences, setDietaryPreferences] = useState<string[]>([])
@@ -97,6 +100,10 @@ function App() {
   const [priceComparisons, setPriceComparisons] = useState<Record<number, PriceComparisonState>>({})
   const [priceTrends, setPriceTrends] = useState<Record<number, PriceTrendState>>({})
   const [basketSummary, setBasketSummary] = useState<BasketSummaryState | null>(null)
+
+  useEffect(() => {
+    applyTheme(theme)
+  }, [theme])
 
   // Shareable link: on first load, a budget/calorieBudget/dietaryPreferences
   // in the URL query string pre-fills the form and auto-runs the query, so
@@ -273,14 +280,17 @@ function App() {
         <h1 className="text-xl font-semibold tracking-tight">
           Gains<span className="text-accent-500">Cart</span>
         </h1>
-        <a
-          href="/survey"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="rounded-full border border-border px-3 py-1.5 text-xs text-muted transition-colors hover:border-accent-500 hover:text-foreground"
-        >
-          Take our survey ↗
-        </a>
+        <div className="flex items-center gap-3">
+          <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))} />
+          <a
+            href="/survey"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-full bg-accent-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-accent-500"
+          >
+            Take our survey ↗
+          </a>
+        </div>
       </header>
 
       <main className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-16">

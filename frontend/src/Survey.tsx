@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { getInitialTheme, applyTheme, type Theme } from './theme'
+import ThemeToggle from './ThemeToggle'
 
 // Mirrors GainsCart_User_Survey.docx (the ethics-approved instrument used
 // for the COMP902 research write-up's human evaluation) -- keys here match
@@ -61,6 +63,7 @@ function emptyLikertAnswers(questions: LikertQuestionDef[]): LikertAnswers {
 }
 
 export default function SurveyPage() {
+  const [theme, setTheme] = useState<Theme>(getInitialTheme)
   const [consent, setConsent] = useState(false)
   const [ageGroup, setAgeGroup] = useState('')
   const [fitnessRelationship, setFitnessRelationship] = useState('')
@@ -79,6 +82,10 @@ export default function SurveyPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
+
+  useEffect(() => {
+    applyTheme(theme)
+  }, [theme])
 
   function allLikertAnswered(answers: LikertAnswers) {
     return Object.values(answers).every((v) => v != null)
@@ -131,10 +138,11 @@ export default function SurveyPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border px-6 py-4">
+      <header className="flex items-center justify-between border-b border-border px-6 py-4">
         <a href="/" className="text-xl font-semibold tracking-tight">
           Gains<span className="text-accent-500">Cart</span>
         </a>
+        <ThemeToggle theme={theme} onToggle={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))} />
       </header>
 
       <main className="mx-auto flex max-w-3xl flex-col gap-4 px-6 py-16">

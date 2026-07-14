@@ -5,6 +5,19 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GainsCart</title>
+    <!--
+      Applied synchronously before first paint, not from a React effect --
+      otherwise a light-mode user would see one dark-themed frame flash
+      before React mounts and switches it. Default stays dark, matching
+      CLAUDE.md's aesthetic; light mode is opt-in via the toggle in the
+      header, persisted in localStorage.
+    -->
+    <script>
+      (function () {
+        var stored = localStorage.getItem('gainscart-theme')
+        if (stored === 'light') document.documentElement.setAttribute('data-theme', 'light')
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
