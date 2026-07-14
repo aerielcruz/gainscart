@@ -111,6 +111,26 @@ the most intuitive "protein foods" -- barely appear in results.**
   to have a photo -- this is expected given the above, not a rendering bug.
   The frontend shows a 🛒 placeholder wherever no photo is on file.
 
+## AI-generated fallback images
+
+- Given the coverage gap above, products with no real photo can instead show
+  an AI-generated illustration, produced by `scripts/backfill-ai-images.js`
+  via [Pollinations.ai](https://pollinations.ai) -- a free, keyless image
+  generation service (no API key/billing, same "unofficial URL" pattern used
+  for the Store location map). Only ever generated for products eligible to
+  appear in results at all (`nutrition.matched` + meets the protein
+  threshold `optimiser.ts` filters on), not the full catalog.
+- These are **illustrations from a text prompt** (brand + product name), not
+  photos of the actual product on shelf -- packaging, exact cut/variety, and
+  branding are not guaranteed to match. Always shown with a visible "AI"
+  badge on the thumbnail (`title` attribute spells this out on hover); never
+  presented as if it were a real product photo.
+- Generation runs as a one-time backfill script, not on-demand -- images are
+  cached in `nutrition.ai_image_url` once generated, so a page load never
+  pays generation latency/cost. Failures (timeouts, rate limits from the
+  free service) are simply left for the next run, same resumable pattern as
+  `sync-nutrition.js`.
+
 ## Incident: image backfill briefly broke fresh-food matching
 
 Recorded as a measured incident (per this document's framing), not scrubbed

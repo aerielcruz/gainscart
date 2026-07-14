@@ -22,6 +22,14 @@ const productSchema = new Schema({
     // barcode to fetch a photo for). Coverage is independent of nutrition
     // match rate -- a matched product can still have no photo.
     image_url: String,
+    // Fallback illustration generated via Pollinations.ai (free, keyless)
+    // by scripts/backfill-ai-images.js, only for products eligible to
+    // appear in results (nutrition.matched + meets the protein threshold)
+    // that have no real image_url -- see LIMITATIONS.md. Always surfaced
+    // to the frontend clearly labeled "AI", never silently swapped in for
+    // a real photo.
+    ai_image_url: String,
+    ai_image_generated_at: Date,
     // Which curated category matched (e.g. 'chicken_breast') -- only set
     // when source is 'curated-reference'. QA field, same purpose as
     // off_product_name above.

@@ -17,6 +17,7 @@ interface OptimiseItem {
   nutrition_source: 'openfoodfacts' | 'curated-reference' | null
   matched_category: string | null
   image_url: string | null
+  image_is_ai_generated: boolean
   fat_g: number | null
   saturated_fat_g: number | null
   carbs_g: number | null
@@ -552,7 +553,7 @@ function ItemRow({
           {rank}
         </span>
 
-        <Thumbnail src={item.image_url} alt={item.name} />
+        <Thumbnail src={item.image_url} alt={item.name} aiGenerated={item.image_is_ai_generated} />
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -594,7 +595,17 @@ function ItemRow({
   )
 }
 
-function Thumbnail({ src, alt, size = 'md' }: { src: string | null; alt: string; size?: 'sm' | 'md' }) {
+function Thumbnail({
+  src,
+  alt,
+  size = 'md',
+  aiGenerated = false,
+}: {
+  src: string | null
+  alt: string
+  size?: 'sm' | 'md'
+  aiGenerated?: boolean
+}) {
   const [broken, setBroken] = useState(false)
   const dimensions = size === 'sm' ? 'h-10 w-10' : 'h-12 w-12'
 
@@ -612,13 +623,23 @@ function Thumbnail({ src, alt, size = 'md' }: { src: string | null; alt: string;
   }
 
   return (
-    <img
-      src={src}
-      alt={alt}
-      loading="lazy"
-      onError={() => setBroken(true)}
-      className={`${dimensions} shrink-0 rounded-md border border-border bg-background object-cover`}
-    />
+    <div className={`relative ${dimensions} shrink-0`}>
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        onError={() => setBroken(true)}
+        className="h-full w-full rounded-md border border-border bg-background object-cover"
+      />
+      {aiGenerated && (
+        <span
+          title="AI-generated illustration -- not an actual photo of this product"
+          className="absolute -bottom-1 -right-1 rounded-full border border-border bg-surface px-1 text-[8px] font-bold uppercase leading-tight text-accent-400"
+        >
+          AI
+        </span>
+      )}
+    </div>
   )
 }
 
@@ -923,7 +944,12 @@ function ItemsTable({
                     <tr className="border-b border-border last:border-b-0 hover:bg-surface-hover">
                       <td className="px-3 py-2 text-muted">{rankByProductId.get(item.product_id)}</td>
                       <td className="px-3 py-2">
-                        <Thumbnail src={item.image_url} alt={item.name} size="sm" />
+                        <Thumbnail
+                          src={item.image_url}
+                          alt={item.name}
+                          size="sm"
+                          aiGenerated={item.image_is_ai_generated}
+                        />
                       </td>
                       <td className="px-3 py-2">
                         <div className="font-medium">{item.name}</div>
