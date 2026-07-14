@@ -12,13 +12,17 @@
  * These are clearly labeled "AI" in the UI (see Thumbnail in App.tsx) --
  * never presented as a real product photo.
  *
- * Usage: node scripts/backfill-ai-images.js [limit]
+ * Usage: node scripts/backfill-ai-images.js [limit] [productIds]
  *   limit = max number of products to attempt this run (default 200)
+ *   productIds = optional comma-separated product_id list to scope to
+ *     (e.g. the app's own current top-N by rank), instead of an arbitrary
+ *     slice of the whole eligible backlog
  */
 import 'dotenv/config'
 import { getDb, closeDb } from './lib/mongo.js'
 
 const LIMIT = parseInt(process.argv[2] || '200', 10)
+const PRODUCT_IDS = process.argv[3] ? process.argv[3].split(',').map(Number) : null
 const DELAY_MS = 3000 // be polite to a free, shared, keyless service -- also cuts down on 429s
 const MIN_PROTEIN_PER_100G = 10 // mirrors optimiser.ts's eligibility filter
 
@@ -44,15 +48,15 @@ async function main() {
   const db = await getDb()
   const products = db.collection('products')
 
-  const pending = await products
-    .find({
-      'nutrition.matched': true,
-      'nutrition.per_100g.protein_g': { $gte: MIN_PROTEIN_PER_100G },
-      $or: [{ 'nutrition.image_url': null }, { 'nutrition.image_url': { $exists: false } }],
-      'nutrition.ai_image_url': { $exists: false },
-    })
-    .limit(LIMIT)
-    .toArray()
+  const query = {
+    'nutrition.matched': true,
+    'nutrition.per_100g.protein_g': { $gte: MIN_PROTEIN_PER_100G },
+    $or: [{ 'nutrition.image_url': null }, { 'nutrition.image_url': { $exists: false } }],
+    'nutrition.ai_image_url': { $exists: false },
+  }
+  if (PRODUCT_IDS) query.product_id = { $in: PRODUCT_IDS }
+
+  const pending = await products.find(query).limit(LIMIT).toArray()
 
   console.log(`Found ${pending.length} products pending an AI image (limit ${LIMIT}).`)
 
