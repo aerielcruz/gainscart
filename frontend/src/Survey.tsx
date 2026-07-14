@@ -169,12 +169,47 @@ export default function SurveyPage() {
         ) : (
           <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-16">
             <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-5 rounded-lg border border-border bg-surface px-6 py-6">
+                <h2 className="text-lg font-semibold text-foreground">Participant Information and Consent</h2>
+
+                <div className="flex flex-col gap-1.5">
+                  <h3 className="font-medium text-foreground">Invitation</h3>
+                  <p className="leading-relaxed text-muted">
+                    I am Aeriel Matthew Cruz, currently completing the COMP902 Applied Research
+                    Project as part of my studies at Auckland Institute of Studies (AIS). This
+                    survey is conducted as part of my final research report. You are invited to
+                    participate by evaluating GainsCart, a protein-per-dollar grocery budgeting
+                    tool. Your responses will help assess the app's usability, effectiveness, and
+                    value for gym-going and bodybuilding communities.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <h3 className="font-medium text-foreground">Purpose of the Study</h3>
+                  <p className="leading-relaxed text-muted">
+                    This study evaluates whether GainsCart helps users identify cost-effective
+                    protein sources, improves satisfaction with grocery decisions, and makes
+                    comparing protein products more efficient. Findings will be reported alongside
+                    a technical evaluation of the app in the final research report.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <h3 className="font-medium text-foreground">Agreement to Participate</h3>
+                  <p className="leading-relaxed text-muted">
+                    Participation is voluntary. You may close this page at any time before
+                    submitting without penalty. All responses are anonymous -- no name, email, or
+                    other identifying information is collected. Data is stored securely and used
+                    only for this academic research project, consistent with the approved
+                    Participant Information Sheet and Consent Form (dated 17 June 2026).
+                  </p>
+                </div>
+              </div>
+
               <p className="text-base leading-relaxed text-muted">
-                This research survey (COMP902 Applied Research Project, Aeriel Matthew Cruz) asks
-                about your experience using GainsCart. It should take about 10-15 minutes. Your
-                responses are anonymous -- please don't include your name anywhere in this form.
-                Before continuing, make sure you've entered a budget, reviewed the ranked list,
-                and tried at least one of the "Why this pick?" or "Compare stores" features.
+                This survey should take about 10-15 minutes. Before continuing, make sure you've
+                entered a budget, reviewed the ranked list, and tried at least one of the "Why
+                this pick?" or "Compare stores" features.
               </p>
 
               <label className="flex items-start gap-3 rounded-lg border border-accent-900 bg-accent-900/10 px-5 py-4">
