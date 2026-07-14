@@ -8,6 +8,7 @@ import { explainRouter } from './routes/explain.js'
 import { basketSummaryRouter } from './routes/basketSummary.js'
 import { priceComparisonRouter } from './routes/priceComparison.js'
 import { priceTrendRouter } from './routes/priceTrend.js'
+import { surveyRouter } from './routes/survey.js'
 import { warmCheapestPerProductCache, CHEAPEST_PER_PRODUCT_CACHE_TTL_MS } from './services/optimiser.js'
 
 const app = express()
@@ -22,6 +23,7 @@ app.use('/api/explain', explainRouter)
 app.use('/api/explain-basket', basketSummaryRouter)
 app.use('/api/price-comparison', priceComparisonRouter)
 app.use('/api/price-trend', priceTrendRouter)
+app.use('/api/survey', surveyRouter)
 
 // Refreshed a few minutes before the cache's own TTL expires, so the
 // background refresh always lands before a request could ever hit a stale/
