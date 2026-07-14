@@ -1,10 +1,13 @@
 @import "tailwindcss";
 
 @theme {
-  /* Base surfaces: black / near-black, gym-app aesthetic, not SaaS pastel */
+  /* Base surfaces: black / near-black page, gym-app aesthetic, not SaaS
+     pastel. Cards (--color-surface) are plain white in both themes on
+     purpose -- see the .bg-surface override below for why that needs its
+     own text-color handling in dark mode. */
   --color-background: #0a0a0a;
-  --color-surface: #141414;
-  --color-surface-hover: #1c1c1c;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f4f4f5;
   --color-border: #262626;
 
   --color-foreground: #ffffff;
@@ -31,20 +34,59 @@
 }
 
 /*
+ * Cards are plain white in both themes (per request, for readability), but
+ * the *page* background/text stays theme-dependent (near-black + white
+ * text in dark mode). That means text sitting directly on a card can't
+ * just inherit the page's white foreground/light-gray muted/light-blue
+ * accent -- those would be unreadable on white. Scoped to .bg-surface
+ * (not global) so page-level text against the dark page background is
+ * unaffected, and CSS custom properties cascade to descendants for free --
+ * no component changes needed. Values match the existing light-mode
+ * overrides below, since "text on a white card" and "text on a light
+ * page" are the same problem. accent-300/600/900 aren't included here
+ * because everywhere they're used as text, it's paired with their own
+ * dark chip background (e.g. `bg-accent-900 text-accent-300`), which
+ * stays self-contained regardless of the outer card's color.
+ */
+.bg-surface {
+  --color-foreground: #0a0a0a;
+  --color-muted: #52525b;
+  --color-border: #d4d4d8;
+  --color-accent-400: #1d4ed8;
+  --color-accent-500: #1e40af;
+}
+
+/*
+ * Small inset boxes (rank badges, thumbnail placeholders, the price-
+ * comparison list) use bg-background rather than bg-surface, and stay
+ * theme-dependent (near-black in dark mode) even when nested inside a
+ * now-always-white .bg-surface card. Without this, they'd inherit the
+ * .bg-surface override above and render dark text on their own dark
+ * background -- restores the page-level theme colors specifically for
+ * elements sitting on bg-background, regardless of what they're nested
+ * in. A directly-declared custom property always wins over an inherited
+ * one, so this correctly overrides .bg-surface's inheritance here.
+ */
+.bg-background {
+  --color-foreground: #ffffff;
+  --color-muted: #a3a3a3;
+  --color-border: #262626;
+}
+:root[data-theme='light'] .bg-background {
+  --color-foreground: #0a0a0a;
+  --color-muted: #52525b;
+  --color-border: #d4d4d8;
+}
+
+/*
  * Light mode is opt-in (toggled via src/theme.ts, applied as a `data-theme`
  * attribute on <html>) -- dark stays the default per CLAUDE.md's aesthetic.
- * Only overrides what actually needs to change for contrast: accent-300 and
- * accent-600/900 are left alone because every place they're used as *text*
- * is always paired with their own dark chip background (e.g.
- * `bg-accent-900 text-accent-300`), so they're self-contained regardless of
- * page theme. accent-400/500 are the ones used as text directly against the
- * page background (links, labels, highlighted figures) and need a darker,
- * more saturated blue on a light page to stay readable.
+ * Cards are already white by default (see above), so there's nothing to
+ * override for surface/surface-hover here. accent-300/600/900 are left
+ * alone for the same self-contained-chip reason as the .bg-surface block.
  */
 :root[data-theme='light'] {
   --color-background: #ffffff;
-  --color-surface: #f4f4f5;
-  --color-surface-hover: #e4e4e7;
   --color-border: #d4d4d8;
 
   --color-foreground: #0a0a0a;
