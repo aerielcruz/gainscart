@@ -34,3 +34,11 @@ services:
       - type: rewrite
         source: /api/*
         destination: https://gainscart-backend.onrender.com/api/*
+      # /survey opens in its own tab (see the link in App.tsx) as a full
+      # page navigation, not client-side routing -- without this, Render's
+      # static host would 404 since there's no literal survey/index.html
+      # file, only one index.html at the root that main.tsx branches on by
+      # pathname.
+      - type: rewrite
+        source: /survey
+        destination: /index.html

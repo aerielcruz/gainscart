@@ -1,5 +1,4 @@
 import { Fragment, useEffect, useState } from 'react'
-import SurveyModal from './Survey'
 
 interface OptimiseItem {
   product_id: number
@@ -90,7 +89,6 @@ function App() {
   const [calorieBudget, setCalorieBudget] = useState('')
   const [dietaryPreferences, setDietaryPreferences] = useState<string[]>([])
   const [rankBy, setRankBy] = useState<'value' | 'protein_density'>('value')
-  const [surveyOpen, setSurveyOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<OptimiseResult | null>(null)
@@ -275,16 +273,15 @@ function App() {
         <h1 className="text-xl font-semibold tracking-tight">
           Gains<span className="text-accent-500">Cart</span>
         </h1>
-        <button
-          type="button"
-          onClick={() => setSurveyOpen(true)}
+        <a
+          href="/survey"
+          target="_blank"
+          rel="noopener noreferrer"
           className="rounded-full border border-border px-3 py-1.5 text-xs text-muted transition-colors hover:border-accent-500 hover:text-foreground"
         >
-          Take our survey
-        </button>
+          Take our survey ↗
+        </a>
       </header>
-
-      {surveyOpen && <SurveyModal onClose={() => setSurveyOpen(false)} />}
 
       <main className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-16">
         <div className="flex flex-col gap-2">

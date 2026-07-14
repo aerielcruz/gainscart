@@ -60,7 +60,7 @@ function emptyLikertAnswers(questions: LikertQuestionDef[]): LikertAnswers {
   return Object.fromEntries(questions.map((q) => [q.key, null]))
 }
 
-export default function SurveyModal({ onClose }: { onClose: () => void }) {
+export default function SurveyPage() {
   const [consent, setConsent] = useState(false)
   const [ageGroup, setAgeGroup] = useState('')
   const [fitnessRelationship, setFitnessRelationship] = useState('')
@@ -121,6 +121,7 @@ export default function SurveyModal({ onClose }: { onClose: () => void }) {
         throw new Error(body.error || `Request failed (${res.status})`)
       }
       setSubmitted(true)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (err: any) {
       setError(err.message || 'Something went wrong submitting the survey.')
     } finally {
@@ -129,71 +130,67 @@ export default function SurveyModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 px-4 py-8">
-      <div className="w-full max-w-2xl rounded-lg border border-border bg-background p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">GainsCart User Evaluation Survey</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md px-2 py-1 text-muted hover:text-foreground"
-            aria-label="Close survey"
-          >
-            ✕
-          </button>
-        </div>
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="border-b border-border px-6 py-4">
+        <a href="/" className="text-xl font-semibold tracking-tight">
+          Gains<span className="text-accent-500">Cart</span>
+        </a>
+      </header>
+
+      <main className="mx-auto flex max-w-3xl flex-col gap-4 px-6 py-16">
+        <p className="text-sm font-medium uppercase tracking-wide text-accent-400">Research survey</p>
+        <h1 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl">
+          GainsCart User Evaluation Survey
+        </h1>
 
         {submitted ? (
-          <div className="flex flex-col gap-3 text-sm text-muted">
-            <p className="text-foreground">Thank you for your time!</p>
-            <p>
+          <div className="mt-6 flex flex-col gap-4 rounded-lg border border-border bg-surface px-8 py-10 text-base text-muted">
+            <p className="text-xl font-semibold text-foreground">Thank you for your time!</p>
+            <p className="leading-relaxed">
               Your response has been recorded anonymously. If you would like a summary of the
               findings once the research is complete, please contact the researcher using the
               details in the Participant Information Sheet.
             </p>
-            <button
-              type="button"
-              onClick={onClose}
-              className="mt-2 self-start rounded-md bg-accent-600 px-4 py-2 text-sm font-medium text-white hover:bg-accent-500"
+            <a
+              href="/"
+              className="mt-2 self-start rounded-md bg-accent-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-500"
             >
-              Close
-            </button>
+              Back to GainsCart
+            </a>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col gap-6 text-sm">
-            <p className="text-muted">
-              This research survey (COMP902 Applied Research Project, Aeriel Matthew Cruz) asks
-              about your experience using GainsCart. It should take about 10-15 minutes. Your
-              responses are anonymous -- please don't include your name anywhere in this form.
-              Before continuing, make sure you've entered a budget, reviewed the ranked list, and
-              tried at least one of the "Why this pick?" or "Compare stores" features.
-            </p>
+          <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-16">
+            <div className="flex flex-col gap-6">
+              <p className="text-base leading-relaxed text-muted">
+                This research survey (COMP902 Applied Research Project, Aeriel Matthew Cruz) asks
+                about your experience using GainsCart. It should take about 10-15 minutes. Your
+                responses are anonymous -- please don't include your name anywhere in this form.
+                Before continuing, make sure you've entered a budget, reviewed the ranked list,
+                and tried at least one of the "Why this pick?" or "Compare stores" features.
+              </p>
 
-            <label className="flex items-start gap-2 rounded-md border border-border bg-surface px-3 py-2">
-              <input
-                type="checkbox"
-                checked={consent}
-                onChange={(e) => setConsent(e.target.checked)}
-                className="mt-0.5"
-                required
-              />
-              <span>
-                I have read the Participant Information Sheet and Consent Form and agree to take
-                part in this research, understanding that participation is voluntary and
-                anonymous.
-              </span>
-            </label>
+              <label className="flex items-start gap-3 rounded-lg border border-accent-900 bg-accent-900/10 px-5 py-4">
+                <input
+                  type="checkbox"
+                  checked={consent}
+                  onChange={(e) => setConsent(e.target.checked)}
+                  className="mt-1 h-4 w-4 shrink-0 accent-accent-500"
+                  required
+                />
+                <span className="text-base leading-relaxed">
+                  I have read the Participant Information Sheet and Consent Form and agree to take
+                  part in this research, understanding that participation is voluntary and
+                  anonymous.
+                </span>
+              </label>
+            </div>
 
-            <fieldset className="flex flex-col gap-3">
-              <legend className="mb-1 font-medium text-foreground">Section A -- About You</legend>
-              <p className="-mt-2 text-xs text-muted">These questions are for grouping responses only and cannot identify you.</p>
+            <Section title="Section A" heading="About You">
+              <p className="-mt-2 mb-2 text-sm text-muted">
+                These questions are for grouping responses only and cannot identify you.
+              </p>
 
-              <ChoiceQuestion
-                label="Age group"
-                options={AGE_GROUPS}
-                value={ageGroup}
-                onChange={setAgeGroup}
-              />
+              <ChoiceQuestion label="Age group" options={AGE_GROUPS} value={ageGroup} onChange={setAgeGroup} />
 
               <ChoiceQuestion
                 label="How would you describe your relationship to fitness/bodybuilding?"
@@ -207,7 +204,7 @@ export default function SurveyModal({ onClose }: { onClose: () => void }) {
                   placeholder="Please specify"
                   value={fitnessRelationshipOther}
                   onChange={(e) => setFitnessRelationshipOther(e.target.value)}
-                  className="rounded-md border border-border bg-surface px-3 py-2 text-foreground outline-none focus:border-accent-500"
+                  className="rounded-md border border-border bg-surface px-4 py-2.5 text-foreground outline-none focus:border-accent-500"
                 />
               )}
 
@@ -224,39 +221,30 @@ export default function SurveyModal({ onClose }: { onClose: () => void }) {
                 value={usedNutritionApp}
                 onChange={setUsedNutritionApp}
               />
-            </fieldset>
+            </Section>
 
-            <LikertSection
-              title="Section B -- Cost-Effective Protein Identification (H1)"
-              hint="GainsCart positively influences users' ability to identify cost-effective protein sources."
-              questions={H1_QUESTIONS}
-              answers={h1}
-              onChange={setH1}
-            />
+            <Section
+              title="Section B"
+              heading="Cost-Effective Protein Identification"
+              hint="H1 -- GainsCart positively influences users' ability to identify cost-effective protein sources."
+            >
+              <LikertQuestions questions={H1_QUESTIONS} answers={h1} onChange={setH1} />
+            </Section>
 
-            <LikertSection
-              title="Section C -- User Satisfaction (H2)"
-              hint="GainsCart positively influences user satisfaction."
-              questions={H2_QUESTIONS}
-              answers={h2}
-              onChange={setH2}
-            />
+            <Section title="Section C" heading="User Satisfaction" hint="H2 -- GainsCart positively influences user satisfaction.">
+              <LikertQuestions questions={H2_QUESTIONS} answers={h2} onChange={setH2} />
+            </Section>
 
-            <LikertSection
-              title="Section D -- Efficiency of Comparing Protein Products (H3)"
-              hint="GainsCart positively influences users' efficiency in comparing protein products."
-              questions={H3_QUESTIONS}
-              answers={h3}
-              onChange={setH3}
-            />
+            <Section
+              title="Section D"
+              heading="Efficiency of Comparing Protein Products"
+              hint="H3 -- GainsCart positively influences users' efficiency in comparing protein products."
+            >
+              <LikertQuestions questions={H3_QUESTIONS} answers={h3} onChange={setH3} />
+            </Section>
 
-            <fieldset className="flex flex-col gap-3">
-              <legend className="mb-1 font-medium text-foreground">Section E -- Open-Ended Feedback</legend>
-              <OpenTextQuestion
-                label="What did you like most about GainsCart?"
-                value={likedMost}
-                onChange={setLikedMost}
-              />
+            <Section title="Section E" heading="Open-Ended Feedback">
+              <OpenTextQuestion label="What did you like most about GainsCart?" value={likedMost} onChange={setLikedMost} />
               <OpenTextQuestion
                 label="What, if anything, was confusing or frustrating?"
                 value={confusing}
@@ -272,39 +260,64 @@ export default function SurveyModal({ onClose }: { onClose: () => void }) {
                 value={wouldChange}
                 onChange={setWouldChange}
               />
-            </fieldset>
+            </Section>
 
-            <LikertSection
-              title="Section F -- Overall Usability"
-              hint='Adapted from the System Usability Scale (Brooke, 1996) -- items are reverse/positively worded on purpose, which is standard practice for that instrument.'
-              questions={SUS_QUESTIONS}
-              answers={sus}
-              onChange={setSus}
-            />
+            <Section
+              title="Section F"
+              heading="Overall Usability"
+              hint="Adapted from the System Usability Scale (Brooke, 1996) -- items are reverse/positively worded on purpose, which is standard practice for that instrument."
+            >
+              <LikertQuestions questions={SUS_QUESTIONS} answers={sus} onChange={setSus} />
+            </Section>
 
             {error && (
-              <div className="rounded-md border border-accent-900 bg-surface px-4 py-3 text-sm text-accent-300">
+              <div className="rounded-md border border-accent-900 bg-surface px-5 py-4 text-base text-accent-300">
                 {error}
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={!canSubmit || submitting}
-              className="rounded-md bg-accent-600 px-4 py-2 font-medium text-white transition-colors hover:bg-accent-500 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {submitting ? 'Submitting...' : 'Submit survey'}
-            </button>
-            {!canSubmit && (
-              <p className="-mt-4 text-xs text-muted">
-                Please give consent and answer every question above (open-ended feedback is
-                optional) before submitting.
-              </p>
-            )}
+            <div className="flex flex-col gap-3 border-t border-border pt-8">
+              <button
+                type="submit"
+                disabled={!canSubmit || submitting}
+                className="self-start rounded-md bg-accent-600 px-6 py-3 text-base font-medium text-white transition-colors hover:bg-accent-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {submitting ? 'Submitting…' : 'Submit survey'}
+              </button>
+              {!canSubmit && (
+                <p className="text-sm text-muted">
+                  Please give consent and answer every question above (open-ended feedback is
+                  optional) before submitting.
+                </p>
+              )}
+            </div>
           </form>
         )}
-      </div>
+      </main>
     </div>
+  )
+}
+
+function Section({
+  title,
+  heading,
+  hint,
+  children,
+}: {
+  title: string
+  heading: string
+  hint?: string
+  children: React.ReactNode
+}) {
+  return (
+    <fieldset className="flex flex-col gap-6">
+      <legend className="flex w-full flex-col gap-1 border-b border-border pb-4">
+        <span className="text-sm font-medium uppercase tracking-wide text-accent-400">{title}</span>
+        <span className="text-xl font-semibold text-foreground">{heading}</span>
+        {hint && <span className="text-sm font-normal text-muted">{hint}</span>}
+      </legend>
+      <div className="flex flex-col gap-5">{children}</div>
+    </fieldset>
   )
 }
 
@@ -320,15 +333,15 @@ function ChoiceQuestion({
   onChange: (v: string) => void
 }) {
   return (
-    <label className="flex flex-col gap-1.5">
-      <span>{label}</span>
-      <div className="flex flex-wrap gap-2">
+    <label className="flex flex-col gap-2.5">
+      <span className="text-base">{label}</span>
+      <div className="flex flex-wrap gap-2.5">
         {options.map((opt) => (
           <button
             key={opt}
             type="button"
             onClick={() => onChange(opt)}
-            className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+            className={`rounded-full border px-4 py-2 text-sm transition-colors ${
               value === opt
                 ? 'border-accent-500 bg-accent-900 text-accent-300'
                 : 'border-border text-muted hover:border-accent-500 hover:text-foreground'
@@ -352,36 +365,30 @@ function OpenTextQuestion({
   onChange: (v: string) => void
 }) {
   return (
-    <label className="flex flex-col gap-1.5">
-      <span>{label}</span>
+    <label className="flex flex-col gap-2.5">
+      <span className="text-base">{label}</span>
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        rows={2}
+        rows={3}
         maxLength={2000}
-        className="resize-y rounded-md border border-border bg-surface px-3 py-2 text-foreground outline-none focus:border-accent-500"
+        className="resize-y rounded-md border border-border bg-surface px-4 py-3 text-foreground outline-none focus:border-accent-500"
       />
     </label>
   )
 }
 
-function LikertSection({
-  title,
-  hint,
+function LikertQuestions({
   questions,
   answers,
   onChange,
 }: {
-  title: string
-  hint: string
   questions: LikertQuestionDef[]
   answers: LikertAnswers
   onChange: (next: LikertAnswers) => void
 }) {
   return (
-    <fieldset className="flex flex-col gap-4">
-      <legend className="mb-1 font-medium text-foreground">{title}</legend>
-      <p className="-mt-3 text-xs text-muted">{hint}</p>
+    <>
       {questions.map((q) => (
         <LikertRow
           key={q.key}
@@ -390,7 +397,7 @@ function LikertSection({
           onChange={(v) => onChange({ ...answers, [q.key]: v })}
         />
       ))}
-    </fieldset>
+    </>
   )
 }
 
@@ -404,9 +411,9 @@ function LikertRow({
   onChange: (v: number) => void
 }) {
   return (
-    <div className="flex flex-col gap-1.5 rounded-md border border-border bg-surface px-3 py-2.5">
-      <span>{statement}</span>
-      <div className="flex flex-wrap gap-1.5">
+    <div className="rounded-lg border border-border bg-surface px-5 py-5 sm:px-7 sm:py-6">
+      <p className="mb-5 text-base leading-relaxed text-foreground">{statement}</p>
+      <div className="grid grid-cols-5 gap-1.5 sm:gap-3">
         {LIKERT_LABELS.map((label, i) => {
           const optionValue = i + 1
           const active = value === optionValue
@@ -415,14 +422,22 @@ function LikertRow({
               key={label}
               type="button"
               onClick={() => onChange(optionValue)}
-              title={label}
-              className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
+              className={`flex flex-col items-center gap-2 rounded-md border px-1 py-3 text-center transition-colors sm:px-2 ${
                 active
-                  ? 'border-accent-500 bg-accent-900 text-accent-300'
-                  : 'border-border text-muted hover:border-accent-500 hover:text-foreground'
+                  ? 'border-accent-500 bg-accent-900'
+                  : 'border-border hover:border-accent-500'
               }`}
             >
-              {label}
+              <span
+                className={`flex h-8 w-8 items-center justify-center rounded-full border text-sm font-semibold transition-colors ${
+                  active ? 'border-accent-400 bg-accent-500 text-white' : 'border-border text-muted'
+                }`}
+              >
+                {optionValue}
+              </span>
+              <span className={`text-[11px] leading-tight ${active ? 'text-accent-300' : 'text-muted'}`}>
+                {label}
+              </span>
             </button>
           )
         })}
