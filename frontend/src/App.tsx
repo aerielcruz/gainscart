@@ -573,6 +573,7 @@ function ItemRow({
             <ExplainBlock explanation={explanation} onExplain={onExplain} />
             <CompareStoresBlock comparison={priceComparison} onCompare={onCompareStores} />
             <PriceTrendBlock trend={priceTrend} onLoad={onLoadPriceTrend} />
+            <StoreMapBlock storeName={item.store_name} />
           </div>
         </div>
       </div>
@@ -750,6 +751,48 @@ function PriceTrendBlock({ trend, onLoad }: { trend?: PriceTrendState; onLoad: (
     <p className={`text-xs font-medium ${color}`} title="Cheapest observed price vs. ~7 days ago">
       {direction} {Math.abs(changePct).toFixed(1)}% vs last week
     </p>
+  )
+}
+
+// Store lat/lng isn't in our data at all (Grocer's public_stores table only
+// has id/vendor_id/name -- see CLAUDE.md), so this searches Google Maps by
+// store name rather than pinning an exact coordinate. Uses the plain
+// maps.google.com "q=...&output=embed" iframe form rather than the official
+// Embed API, since that requires a billed API key we don't have set up.
+function StoreMapBlock({ storeName }: { storeName: string }) {
+  const [expanded, setExpanded] = useState(false)
+
+  if (!expanded) {
+    return (
+      <button
+        type="button"
+        onClick={() => setExpanded(true)}
+        className="text-xs text-accent-400 underline-offset-2 hover:underline"
+      >
+        Store location 📍
+      </button>
+    )
+  }
+
+  const query = encodeURIComponent(`${storeName}, New Zealand`)
+
+  return (
+    <div className="flex w-full max-w-md flex-col gap-1">
+      <button
+        type="button"
+        onClick={() => setExpanded(false)}
+        className="self-start text-xs text-accent-400 underline-offset-2 hover:underline"
+      >
+        Hide map
+      </button>
+      <iframe
+        title={`Map showing ${storeName}`}
+        src={`https://www.google.com/maps?q=${query}&output=embed`}
+        loading="lazy"
+        referrerPolicy="no-referrer-when-downgrade"
+        className="h-40 w-full rounded border border-border"
+      />
+    </div>
   )
 }
 
@@ -937,6 +980,7 @@ function ItemsTable({
                                 trend={priceTrends[item.product_id]}
                                 onLoad={() => onLoadPriceTrend(item)}
                               />
+                              <StoreMapBlock storeName={item.store_name} />
                             </div>
                           </div>
                         </td>
