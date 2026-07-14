@@ -56,6 +56,14 @@ const SUS_QUESTIONS: LikertQuestionDef[] = [
   { key: 'learnQuickly', statement: 'I imagine most people would learn to use this app very quickly.' },
 ]
 
+// Added after the original ethics-approved instrument (GainsCart_User_Survey.docx)
+// was written, covering features shipped since then -- kept as its own group
+// rather than folded into H1/H2/H3 so it doesn't disturb that hypothesis scoring.
+const NF_QUESTIONS: LikertQuestionDef[] = [
+  { key: 'storeMapHelpful', statement: 'The "Store location" map made it easy to know where to find a store.' },
+  { key: 'themeToggleHelpful', statement: 'Being able to switch between light and dark mode improved my experience using the app.' },
+]
+
 type LikertAnswers = Record<string, number | null>
 
 function emptyLikertAnswers(questions: LikertQuestionDef[]): LikertAnswers {
@@ -74,6 +82,7 @@ export default function SurveyPage() {
   const [h2, setH2] = useState<LikertAnswers>(() => emptyLikertAnswers(H2_QUESTIONS))
   const [h3, setH3] = useState<LikertAnswers>(() => emptyLikertAnswers(H3_QUESTIONS))
   const [sus, setSus] = useState<LikertAnswers>(() => emptyLikertAnswers(SUS_QUESTIONS))
+  const [nf, setNf] = useState<LikertAnswers>(() => emptyLikertAnswers(NF_QUESTIONS))
   const [likedMost, setLikedMost] = useState('')
   const [confusing, setConfusing] = useState('')
   const [wrongOrSurprising, setWrongOrSurprising] = useState('')
@@ -101,7 +110,8 @@ export default function SurveyPage() {
     allLikertAnswered(h1) &&
     allLikertAnswered(h2) &&
     allLikertAnswered(h3) &&
-    allLikertAnswered(sus)
+    allLikertAnswered(sus) &&
+    allLikertAnswered(nf)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -120,6 +130,7 @@ export default function SurveyPage() {
           h2,
           h3,
           sus,
+          nf,
           openEnded: { likedMost, confusing, wrongOrSurprising, wouldChange },
         }),
       })
@@ -175,9 +186,9 @@ export default function SurveyPage() {
                 <div className="flex flex-col gap-1.5">
                   <h3 className="font-medium text-foreground">Invitation</h3>
                   <p className="leading-relaxed text-muted">
-                    I am Aeriel Matthew Cruz, currently completing the COMP902 Applied Research
-                    Project as part of my studies at Auckland Institute of Studies (AIS). This
-                    survey is conducted as part of my final research report. You are invited to
+                    I am Aeriel Matthew Cruz, currently completing the COMP902 Applied Research Project 
+                    as part of the Master of Information Technology (MIT) program at Auckland Institute of Studies (AIS).
+                    This survey is conducted as part of my final research report. You are invited to
                     participate by evaluating GainsCart, a protein-per-dollar grocery budgeting
                     tool. Your responses will help assess the app's usability, effectiveness, and
                     value for gym-going and bodybuilding communities.
@@ -313,6 +324,14 @@ export default function SurveyPage() {
               <LikertQuestions questions={SUS_QUESTIONS} answers={sus} onChange={setSus} />
             </Section>
 
+            <Section
+              title="Section G"
+              heading="Recently Added Features"
+              hint="Added after the original survey instrument -- covers features shipped since, not part of the H1/H2/H3 scoring above."
+            >
+              <LikertQuestions questions={NF_QUESTIONS} answers={nf} onChange={setNf} />
+            </Section>
+
             {error && (
               <div className="rounded-md border border-accent-900 bg-surface px-5 py-4 text-base text-accent-300">
                 {error}
@@ -384,11 +403,10 @@ function ChoiceQuestion({
             key={opt}
             type="button"
             onClick={() => onChange(opt)}
-            className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-              value === opt
+            className={`rounded-full border px-4 py-2 text-sm transition-colors ${value === opt
                 ? 'border-accent-500 bg-accent-900 text-accent-300'
                 : 'border-border text-muted hover:border-accent-500 hover:text-foreground'
-            }`}
+              }`}
           >
             {opt}
           </button>
@@ -465,16 +483,14 @@ function LikertRow({
               key={label}
               type="button"
               onClick={() => onChange(optionValue)}
-              className={`flex flex-col items-center gap-2 rounded-md border px-1 py-3 text-center transition-colors sm:px-2 ${
-                active
+              className={`flex flex-col items-center gap-2 rounded-md border px-1 py-3 text-center transition-colors sm:px-2 ${active
                   ? 'border-accent-500 bg-accent-900'
                   : 'border-border hover:border-accent-500'
-              }`}
+                }`}
             >
               <span
-                className={`flex h-8 w-8 items-center justify-center rounded-full border text-sm font-semibold transition-colors ${
-                  active ? 'border-accent-400 bg-accent-500 text-white' : 'border-border text-muted'
-                }`}
+                className={`flex h-8 w-8 items-center justify-center rounded-full border text-sm font-semibold transition-colors ${active ? 'border-accent-400 bg-accent-500 text-white' : 'border-border text-muted'
+                  }`}
               >
                 {optionValue}
               </span>

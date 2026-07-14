@@ -17,6 +17,7 @@ const H1_KEYS = ['proteinValue', 'easyToCompare', 'noticedNewItems', 'trustNutri
 const H2_KEYS = ['satisfiedOverall', 'easyWithoutInstructions', 'explanationsAddedValue', 'wouldUseAgain', 'wouldRecommend']
 const H3_KEYS = ['fasterThanManual', 'usableListQuickly', 'compareStoresQuick', 'dietaryFilterAsExpected', 'noNeedToLeaveApp']
 const SUS_KEYS = ['unnecessarilyComplex', 'wouldNeedSupport', 'wellIntegrated', 'learnQuickly']
+const NF_KEYS = ['storeMapHelpful', 'themeToggleHelpful']
 
 // Open-ended answers are free text from an anonymous participant -- capped
 // to keep the DB entry bounded, not because longer feedback is unwelcome.
@@ -81,6 +82,11 @@ surveyRouter.post('/', async (req, res) => {
     res.status(400).json({ error: `sus.${sus}` })
     return
   }
+  const nf = parseLikertGroup(body.nf, NF_KEYS)
+  if (typeof nf === 'string') {
+    res.status(400).json({ error: `nf.${nf}` })
+    return
+  }
 
   try {
     await SurveyResponse.create({
@@ -96,6 +102,7 @@ surveyRouter.post('/', async (req, res) => {
       h2,
       h3,
       sus,
+      nf,
       openEnded: {
         likedMost: parseOpenText(body.openEnded?.likedMost),
         confusing: parseOpenText(body.openEnded?.confusing),

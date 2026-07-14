@@ -61,6 +61,13 @@ const surveyResponseSchema = new Schema({
     wellIntegrated: likertScale,
     learnQuickly: likertScale,
   },
+  // Added after the original ethics-approved instrument -- covers features
+  // shipped since (store location map, light/dark theme), kept separate from
+  // h1/h2/h3 so it doesn't disturb that hypothesis scoring.
+  nf: {
+    storeMapHelpful: likertScale,
+    themeToggleHelpful: likertScale,
+  },
   openEnded: {
     likedMost: String,
     confusing: String,
