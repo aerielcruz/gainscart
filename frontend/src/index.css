@@ -1,21 +1,8 @@
 @import "tailwindcss";
 
-/*
- * Palette/type direction adapted from Fluxa (Gliuk Studio, Behance) --
- * dark canvas, Urbanist type, and their exact brand blue (#0981FF) as the
- * accent base, extended with a cyan/orange pair for semantic variety
- * (e.g. estimated-vs-verified data, price up/down) instead of one blue
- * doing every job. Still black/near-black + high-contrast per CLAUDE.md's
- * gym-app aesthetic -- the reference is closer to "AI SaaS" than that
- * brief on its own, so the parts that don't fit a data-dense grocery list
- * (3D device mockups, wire-diagram illustrations, photo testimonials)
- * weren't carried over, just the palette, type, and card language.
- */
 @theme {
-  --font-sans: 'Urbanist', ui-sans-serif, system-ui, sans-serif;
-
   /* Base surfaces: black / near-black, gym-app aesthetic, not SaaS pastel */
-  --color-background: #050404;
+  --color-background: #0a0a0a;
   --color-surface: #141414;
   --color-surface-hover: #1c1c1c;
   --color-border: #262626;
@@ -23,79 +10,36 @@
   --color-foreground: #ffffff;
   --color-muted: #a3a3a3;
 
-  /* Blue accent scale -- 500 is Fluxa's exact brand blue (#0981FF) */
-  --color-accent-50: #eaf4ff;
-  --color-accent-100: #d3e9ff;
-  --color-accent-200: #a8d3ff;
-  --color-accent-300: #7bbcff;
-  --color-accent-400: #4aa2ff;
-  --color-accent-500: #0981ff;
-  --color-accent-600: #0068e0;
-  --color-accent-700: #0052b3;
-  --color-accent-800: #003d86;
-  --color-accent-900: #002a5c;
-
-  /* Cyan -- "verified/matched" data, price-drop signal */
-  --color-cyan-300: #9fedf5;
-  --color-cyan-400: #4fddec;
-  --color-cyan-500: #1ed1e9;
-  --color-cyan-600: #14a3b8;
-  --color-cyan-900: #0a3d47;
-
-  /* Orange -- "estimated/approximate" data, price-rise signal */
-  --color-orange-300: #ffc27a;
-  --color-orange-400: #ffa333;
-  --color-orange-500: #ff8400;
-  --color-orange-600: #cc6a00;
-  --color-orange-900: #4d2800;
+  /* Blue accent scale for interactive elements */
+  --color-accent-50: #eff6ff;
+  --color-accent-100: #dbeafe;
+  --color-accent-200: #bfdbfe;
+  --color-accent-300: #93c5fd;
+  --color-accent-400: #60a5fa;
+  --color-accent-500: #3b82f6;
+  --color-accent-600: #2563eb;
+  --color-accent-700: #1d4ed8;
+  --color-accent-800: #1e40af;
+  --color-accent-900: #1e3a8a;
 }
 
 @layer base {
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: var(--font-sans);
     transition: background-color 0.15s ease, color 0.15s ease;
   }
-}
-
-/*
- * Subtle dot-grid texture, Fluxa-style -- a repeating radial-gradient, not
- * an image, so it stays crisp at any size. Kept faint (low-alpha dots)
- * and only ever applied to the page background, never inside opaque
- * surface/card backgrounds, so it reads as depth in the negative space
- * around content rather than noise competing with dense tables.
- */
-.bg-dot-grid {
-  background-image: radial-gradient(circle, color-mix(in srgb, var(--color-foreground) 14%, transparent) 1px, transparent 1px);
-  background-size: 22px 22px;
-}
-
-/*
- * Glassmorphic card -- Fluxa's frosted-overlay treatment, reserved for
- * callout/summary panels (glossary, basket summary, consent) rather than
- * dense repeated rows, where a blurred surface reads as noise rather than
- * depth. Uses the theme-aware surface/border tokens at reduced opacity so
- * it adapts correctly in both dark and light mode instead of a hardcoded
- * white-tinted glass that would look wrong on a light background.
- */
-.glass-card {
-  background-color: color-mix(in srgb, var(--color-surface) 65%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 
 /*
  * Light mode is opt-in (toggled via src/theme.ts, applied as a `data-theme`
  * attribute on <html>) -- dark stays the default per CLAUDE.md's aesthetic.
  * Only overrides what actually needs to change for contrast: accent-300 and
- * accent-600/900 (plus the cyan/orange 900s) are left alone because every
- * place they're used as *text* is always paired with their own dark chip
- * background (e.g. `bg-accent-900 text-accent-300`), so they're
- * self-contained regardless of page theme. The 400/500 shades are the ones
- * used as text directly against the page background (links, labels,
- * highlighted figures, badges) and need a darker, more saturated value on
- * a light page to stay readable.
+ * accent-600/900 are left alone because every place they're used as *text*
+ * is always paired with their own dark chip background (e.g.
+ * `bg-accent-900 text-accent-300`), so they're self-contained regardless of
+ * page theme. accent-400/500 are the ones used as text directly against the
+ * page background (links, labels, highlighted figures) and need a darker,
+ * more saturated blue on a light page to stay readable.
  */
 :root[data-theme='light'] {
   --color-background: #ffffff;
@@ -106,12 +50,6 @@
   --color-foreground: #0a0a0a;
   --color-muted: #52525b;
 
-  --color-accent-400: #0068e0;
-  --color-accent-500: #0052b3;
-
-  --color-cyan-400: #0f8a9c;
-  --color-cyan-500: #0a6b7a;
-
-  --color-orange-400: #b35700;
-  --color-orange-500: #8f4600;
+  --color-accent-400: #1d4ed8;
+  --color-accent-500: #1e40af;
 }
