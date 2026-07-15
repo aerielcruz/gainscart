@@ -98,11 +98,6 @@ function emptyLikertAnswers(questions: LikertQuestionDef[]): LikertAnswers {
   return Object.fromEntries(questions.map((q) => [q.key, null]))
 }
 
-// display-only heading font, loaded in index.css -- scoped to this page via
-// this class rather than a global Tailwind theme token, since the main
-// app's dark gym-app aesthetic (CLAUDE.md) keeps its existing sans-serif.
-const HEADING_FONT = "font-['Fraunces',_serif]"
-
 export default function SurveyPage() {
   const [theme, setTheme] = useState<Theme>(getInitialTheme)
   const [step, setStep] = useState(0)
@@ -228,7 +223,7 @@ export default function SurveyPage() {
 
       <main className="mx-auto flex max-w-2xl flex-col gap-4 px-6 py-16">
         <p className="text-sm font-medium uppercase tracking-wide text-accent-400">Research survey</p>
-        <h1 className={`${HEADING_FONT} text-3xl font-bold tracking-tight text-balance sm:text-4xl`}>
+        <h1 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl">
           GainsCart User Evaluation Survey
         </h1>
 
@@ -262,7 +257,7 @@ export default function SurveyPage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <h2 className={`${HEADING_FONT} text-2xl font-semibold text-foreground`}>{STEPS[step].heading}</h2>
+              <h2 className="text-2xl font-semibold text-foreground">{STEPS[step].heading}</h2>
               {STEPS[step].hint && <p className="text-sm text-muted">{STEPS[step].hint}</p>}
             </div>
 
