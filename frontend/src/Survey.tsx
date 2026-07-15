@@ -186,7 +186,7 @@ export default function SurveyPage() {
                 <div className="flex flex-col gap-1.5">
                   <h3 className="font-medium text-foreground">Invitation</h3>
                   <p className="leading-relaxed text-muted">
-                    I am Aeriel Matthew Cruz, currently completing the COMP902 Applied Research Project 
+                    I am Aeriel Matthew Cruz, currently completing the COMP902 Advanced Information Technology Specialised Project
                     as part of the Master of Information Technology (MIT) program at Auckland Institute of Studies (AIS).
                     This survey is conducted as part of my final research report. You are invited to
                     participate by evaluating GainsCart, a protein-per-dollar grocery budgeting
@@ -240,7 +240,7 @@ export default function SurveyPage() {
             </div>
 
             <Section title="Section A" heading="About You">
-              <p className="-mt-2 mb-2 text-sm text-muted">
+              <p className="mt-2 mb-2 text-sm text-muted">
                 These questions are for grouping responses only and cannot identify you.
               </p>
 
