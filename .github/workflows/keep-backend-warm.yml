@@ -1,0 +1,18 @@
+name: Keep backend warm
+
+# Render's free tier spins the backend down after ~15 min of no traffic,
+# causing a slow cold-start (or an outright 502) on the next real request --
+# see LIMITATIONS.md. Pinging a lightweight health route every 10 minutes
+# counts as traffic, so it never sits idle long enough to spin down. Public
+# repo, so these runs are unlimited/free on GitHub Actions.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend health endpoint
+        run: curl -sf --max-time 60 https://gainscart-backend.onrender.com/api/health
