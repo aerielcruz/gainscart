@@ -1,4 +1,8 @@
 @import "tailwindcss";
+/* Serif display font for the survey page's headings only (Survey.tsx's
+   HEADING_FONT) -- the main app keeps CLAUDE.md's plain sans-serif, gym-app
+   aesthetic; the survey is a separate, more formal research instrument. */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap');
 
 @theme {
   /* Base surfaces: black / near-black page, gym-app aesthetic, not SaaS

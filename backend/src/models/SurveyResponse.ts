@@ -9,21 +9,23 @@ const likertScale = { type: Number, min: 1, max: 5, required: true }
 
 const surveyResponseSchema = new Schema({
   demographics: {
-    ageGroup: { type: String, enum: ['18-24', '25-34', '35-44', '45-54', '55+'], required: true },
+    // Stable value codes, not display labels -- must match the ChoiceOption
+    // `value`s in frontend/src/Survey.tsx and backend/src/routes/survey.ts.
+    ageGroup: { type: String, enum: ['18_24', '25_34', '35_44', '45_54', '55_plus'], required: true },
     fitnessRelationship: {
       type: String,
-      enum: ['Competitive bodybuilder', 'Recreational lifter/gym-goer', 'General fitness interest', 'Other'],
+      enum: ['competitive_bodybuilder', 'recreational_lifter', 'general_fitness', 'other'],
       required: true,
     },
     fitnessRelationshipOther: String,
     trackingFrequency: {
       type: String,
-      enum: ['Daily', 'A few times a week', 'Rarely', 'Never'],
+      enum: ['daily', 'few_times_week', 'rarely', 'never'],
       required: true,
     },
     usedNutritionApp: {
       type: String,
-      enum: ['Yes, regularly', 'Yes, tried it once or twice', 'No'],
+      enum: ['yes_regularly', 'yes_tried_once', 'no'],
       required: true,
     },
   },

@@ -3,15 +3,12 @@ import { SurveyResponse } from '../models/SurveyResponse.js'
 
 export const surveyRouter = Router()
 
-const AGE_GROUPS = ['18-24', '25-34', '35-44', '45-54', '55+']
-const FITNESS_RELATIONSHIPS = [
-  'Competitive bodybuilder',
-  'Recreational lifter/gym-goer',
-  'General fitness interest',
-  'Other',
-]
-const TRACKING_FREQUENCIES = ['Daily', 'A few times a week', 'Rarely', 'Never']
-const NUTRITION_APP_USAGE = ['Yes, regularly', 'Yes, tried it once or twice', 'No']
+// Stable value codes, not display labels -- must match the ChoiceOption
+// `value`s in frontend/src/Survey.tsx and the enums in SurveyResponse.ts.
+const AGE_GROUPS = ['18_24', '25_34', '35_44', '45_54', '55_plus']
+const FITNESS_RELATIONSHIPS = ['competitive_bodybuilder', 'recreational_lifter', 'general_fitness', 'other']
+const TRACKING_FREQUENCIES = ['daily', 'few_times_week', 'rarely', 'never']
+const NUTRITION_APP_USAGE = ['yes_regularly', 'yes_tried_once', 'no']
 
 const H1_KEYS = ['proteinValue', 'easyToCompare', 'noticedNewItems', 'trustNutritionInfo', 'matchedEstimatedClear']
 const H2_KEYS = ['satisfiedOverall', 'easyWithoutInstructions', 'explanationsAddedValue', 'wouldUseAgain', 'wouldRecommend']
