@@ -23,6 +23,18 @@ see LIMITATIONS.md for why.
   pull from Grocer.nz's public DuckDB/parquet exports and Open Food Facts,
   and write into MongoDB
 
+## Frontend features
+
+Beyond entering a budget and getting a ranked list: a list/table view
+toggle with sortable columns; a "Best value" vs "Leanest" rank toggle;
+dietary preference filters (vegan/vegetarian/allergen-free); a "New here?"
+glossary for readers with no nutrition background; per-item "Why this
+pick?" (AI explanation), "Compare stores", "Price trend", and "Store
+location" (map); a whole-basket AI summary; a shareable results link;
+opt-in light mode; and an in-app research survey at `/survey`. See
+[`CLAUDE.md`](./CLAUDE.md)'s "Frontend Features"/"AI Features"/"Survey"
+sections for the details and the data/limitations behind each.
+
 ## Project structure
 
 ```
@@ -30,12 +42,15 @@ frontend/               Vite + React app
 backend/
   src/                   Express API (reads MongoDB, never touches DuckDB)
   scripts/
-    sync-products.js     Grocer.nz catalog -> `products` + `stores` collections
-    sync-nutrition.js    Open Food Facts lookups -> nutrition data on `products`
-    sync-fresh-foods.js  Curated per-100g reference data for weighed/fresh foods OFF can't match
-    sync-prices.js       Live per-store prices -> `prices` collection
-    lib/                 Shared helpers (size parsing, OFF lookup, fresh-food reference, DuckDB, Mongo)
-    legacy/              Original prototype scripts, kept for reference only
+    sync-products.js         Grocer.nz catalog -> `products` + `stores` collections
+    sync-nutrition.js        Open Food Facts lookups -> nutrition data on `products`
+    sync-fresh-foods.js      Curated per-100g reference data for weighed/fresh foods OFF can't match
+    sync-prices.js           Live per-store prices -> `prices` collection
+    backfill-ai-images.js    One-time/ad-hoc: AI-generated fallback photos (Pollinations.ai) for products with no real image
+    lib/                     Shared helpers (size parsing, OFF lookup, fresh-food reference, DuckDB, Mongo)
+    legacy/                  Original prototype scripts, kept for reference only
+render.yaml              Render deployment blueprint (backend + frontend)
+.github/workflows/       GitHub Actions cron keeping the free-tier backend from spinning down
 ```
 
 ## Prerequisites
@@ -52,7 +67,9 @@ backend/
 ```bash
 cd backend
 npm install
-cp .env.example .env   # fill in MONGODB_URI
+cp .env.example .env   # fill in MONGODB_URI; GROQ_API_KEY is optional --
+                       # leave blank to disable "Why this pick?"/basket
+                       # summary rather than fail silently (see .env.example)
 npm run dev            # http://localhost:4000
 ```
 
@@ -109,7 +126,8 @@ LIMITATIONS.md).
 
 ## API
 
-- `GET /api/health` -- liveness check
+- `GET /api/health` -- liveness check (also what the GitHub Actions
+  keep-alive cron pings, see Deployment below)
 - `GET /api/optimise?budget=50` -- ranked, budget-constrained grocery list.
   - `dietaryPreferences` (optional, comma-separated) -- enforced via OFF's
     vegan/vegetarian/allergen tags. Recognized values: `vegan`,
@@ -118,6 +136,41 @@ LIMITATIONS.md).
     value. Not a medical/allergy-safety guarantee -- see LIMITATIONS.md.
   - `calorieBudget` (optional) -- hard cap on total kcal added during the
     greedy budget fill, alongside the dollar budget.
+  - `rankBy` (optional, `value` | `protein_density`, default `value`) --
+    `value` ranks by protein-per-dollar x protein-density; `protein_density`
+    ("Leanest" in the UI) ranks by protein-per-calorie alone. 400s on an
+    unrecognized value.
+- `POST /api/explain` -- "Why this pick?": one-item AI explanation via Groq.
+  Body is the specific item fields the prompt needs (name, store_name,
+  price_dollars, protein_g, kcal, protein_per_dollar,
+  protein_pct_of_calories, nutrition_source, brand/size optional) -- 502s
+  with a clear error if `GROQ_API_KEY` is unset or Groq is unreachable.
+- `POST /api/explain-basket` -- whole-basket AI summary, same Groq
+  dependency as above. Body: itemCount, totalCost, totalProteinG,
+  totalCalories, and the six micro totals (fat/saturated fat/carbs/
+  sugars/fiber/sodium), plus `topItemNames` (capped to 10 server-side).
+- `GET /api/price-comparison/:productId` -- every tracked store's current
+  price for one product (not just the cheapest one the optimiser picked).
+  Pure re-read of already-synced `prices` data, no external calls.
+- `GET /api/price-trend/:productId` -- 7-day price trend for one product,
+  queried live from Grocer's per-product price-history parquet (see
+  CLAUDE.md's Data Sources note on that file's real schema). Cached 6h
+  server-side per product.
+- `POST /api/survey` -- submits one anonymous research survey response
+  (see CLAUDE.md's Survey section). Strict whitelist validation --
+  Likert answers must be integers 1-5, choice fields must match a known
+  value code, free text is capped at 2000 chars.
+
+## Deployment
+
+Deployed on Render via the [`render.yaml`](./render.yaml) blueprint --
+a free-tier Node web service for the backend and a static site for the
+built frontend. `MONGODB_URI`/`GROQ_API_KEY` are set in the Render
+dashboard, never committed. A GitHub Actions cron
+([`.github/workflows/keep-backend-warm.yml`](./.github/workflows/keep-backend-warm.yml))
+pings `/api/health` every 10 minutes so the free-tier backend doesn't spin
+down after ~15 min idle -- see CLAUDE.md's Deployment section for the full
+rationale and caveats.
 
 ## Known limitations
 
